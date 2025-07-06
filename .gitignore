@@ -1,0 +1,8 @@
+# Ignore Python virtual environment
+.venv/
+
+# Ignore downloaded SEC data
+sec_data/
+
+# Ignore log files
+*.log
