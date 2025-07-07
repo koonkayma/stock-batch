@@ -50,7 +50,13 @@ METRIC_MAP = {
     'net_income': ['NetIncomeLoss', 'ProfitLoss', 'NetIncomeLossAvailableToCommonStockholdersBasic'],
     'shares_outstanding': ['WeightedAverageNumberOfDilutedSharesOutstanding', 'WeightedAverageNumberOfSharesOutstandingDiluted', 'WeightedAverageNumberOfSharesOutstandingBasic'],
     'eps': ['EarningsPerShareDiluted', 'EarningsPerShareBasic'],
-    'dividend_per_share': 'CommonStockDividendsPerShareDeclared',
+    'dividend_per_share': [
+        'CommonStockDividendsPerShareDeclared',
+        # Fallback calculation if the per-share tag is not available
+        lambda d: (d.get('PaymentsOfDividends', 0) / d.get('shares_outstanding')) if d.get('shares_outstanding') and d.get('PaymentsOfDividends') else None
+    ],
+    # This tag holds the total dividend payment amount, used in the calculation above.
+    'PaymentsOfDividends': 'PaymentsOfDividends',
     'gross_margin': lambda d: (d.get('gross_profit', 0) / d.get('revenue')) if d.get('revenue') else None,
     'operating_margin': lambda d: (d.get('operating_income', 0) / d.get('revenue')) if d.get('revenue') else None,
     'profit_margin': lambda d: (d.get('net_income', 0) / d.get('revenue')) if d.get('revenue') else None,
@@ -80,7 +86,7 @@ METRIC_MAP = {
     'investing_cash_flow': 'NetCashProvidedByUsedInInvestingActivities',
     'financing_cash_flow': 'NetCashProvidedByUsedInFinancingActivities',
     'net_cash_flow': 'NetIncreaseDecreaseInCashAndCashEquivalents',
-    'free_cash_flow': lambda d: d.get('operating_cash_flow', 0) - abs(d.get('capital_expenditures', 0)),
+    'free_cash_flow': lambda d: d['operating_cash_flow'] - abs(d['capital_expenditures']) if d.get('operating_cash_flow') is not None and d.get('capital_expenditures') is not None else None,
     'working_capital': lambda d: d.get('total_current_assets', 0) - d.get('total_current_liabilities', 0),
     'book_value_per_share': lambda d: (d.get('shareholders_equity', 0) / d.get('shares_outstanding')) if d.get('shares_outstanding') else None,
 }
@@ -179,13 +185,24 @@ def process_and_load_financials(conn, cik, ticker, file_path):
             if isinstance(gaap_tags, str):
                 record[name] = year_data_raw.get(gaap_tags)
             elif isinstance(gaap_tags, list):
-                # Find the first available tag in the list
+                # Find the first available tag or successful calculation in the list
                 for tag in gaap_tags:
-                    if tag in year_data_raw:
+                    if isinstance(tag, str) and tag in year_data_raw:
                         record[name] = year_data_raw[tag]
-                        break # Found a value, move to the next metric
+                        break  # Found a value, move to the next metric
+                    elif callable(tag):
+                        try:
+                            # Attempt the calculation
+                            result = tag(record)
+                            if result is not None:
+                                record[name] = result
+                                break # Calculation successful
+                        except (TypeError, ZeroDivisionError):
+                            continue # Try the next item in the list
                 else:
-                    record[name] = None # No tag was found
+                    # If the loop completes without finding a tag or a successful calculation
+                    if name not in record:
+                       record[name] = None
         
         # Get calculated values
         for name, logic in METRIC_MAP.items():

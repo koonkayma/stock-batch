@@ -63,6 +63,7 @@ CREATE TABLE sec_financial_reports (
     free_cash_flow DECIMAL(19, 4),
     working_capital DECIMAL(19, 4),
     book_value_per_share DECIMAL(10, 4),
+    PaymentsOfDividends DECIMAL(19, 4),
 
     -- Record Keeping
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
