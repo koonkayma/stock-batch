@@ -2,6 +2,15 @@
 
 This document provides instructions on how to set up and run the SEC Financial Data Viewer application.
 
+## Overview
+
+The SEC Financial Data Viewer is a web application that allows users to search for publicly traded companies and visualize their historical financial data from SEC filings.
+
+The application is built with the following technologies:
+*   **Backend:** A Python Flask server that provides a JSON API to query the database.
+*   **Frontend:** A dynamic single-page application built with Vue.js and Chart.js for rendering interactive charts and tables.
+*   **Database:** A MariaDB or MySQL database that stores the company and financial report data.
+
 ## Prerequisites
 
 *   Python 3
