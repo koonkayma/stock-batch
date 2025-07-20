@@ -90,6 +90,7 @@ METRIC_MAP = {
     'free_cash_flow': lambda d: d['operating_cash_flow'] - abs(d['capital_expenditures']) if d.get('operating_cash_flow') is not None and d.get('capital_expenditures') is not None else None,
     'working_capital': lambda d: d.get('total_current_assets', 0) - d.get('total_current_liabilities', 0),
     'book_value_per_share': lambda d: (d.get('shareholders_equity', 0) / d.get('shares_outstanding')) if d.get('shares_outstanding') else None,
+    'Dividend_Payout_Ratio': lambda d: (d.get('PaymentsOfDividends', 0) / d.get('net_income')) if d.get('net_income') else None,
 }
 
 def get_db_connection():
