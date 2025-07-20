@@ -8,17 +8,18 @@ The SEC Financial Data Viewer is a web application that allows users to search f
 
 The application is built with the following technologies:
 *   **Backend:** A Python Flask server that provides a JSON API to query the database.
-*   **Frontend:** A dynamic single-page application built with Vue.js and Chart.js for rendering interactive charts and tables.
+*   **Frontend:** A dynamic single-page application built with Vue.js and Vite.
 *   **Database:** A MariaDB or MySQL database that stores the company and financial report data.
 
 ## Prerequisites
 
 *   Python 3
+*   Node.js and npm
 *   A running MariaDB or MySQL database instance with the `sec_companies` and `sec_financial_reports` tables created (see `tables.sql`).
 
 ## 1. Create a Virtual Environment
 
-It is highly recommended to use a virtual environment to manage the project's dependencies.
+It is highly recommended to use a virtual environment to manage the project's Python dependencies.
 
 To create a virtual environment named `.venv`, run the following command in the project's root directory:
 
@@ -26,7 +27,7 @@ To create a virtual environment named `.venv`, run the following command in the 
 python3 -m venv .venv
 ```
 
-## 2. Install Dependencies
+## 2. Install Backend Dependencies
 
 Activate the virtual environment and install the required Python packages using the following commands:
 
@@ -38,7 +39,16 @@ source .venv/bin/activate
 pip install Flask mysql-connector-python
 ```
 
-## 3. Configure the Database Connection
+## 3. Install Frontend Dependencies
+
+In a separate terminal, navigate to the `frontend` directory and install the required npm packages:
+
+```bash
+cd frontend
+npm install
+```
+
+## 4. Configure the Database Connection
 
 Open the `app.py` file and modify the `DB_CONFIG` dictionary with your database connection details:
 
@@ -53,29 +63,37 @@ DB_CONFIG = {
 }
 ```
 
-## 4. Run the Application
+## 5. Run the Application
 
-Once the dependencies are installed and the database is configured, you can run the application with the following command:
+The application now has two parts that need to be run concurrently: the Flask backend and the Vite frontend development server.
+
+**Terminal 1: Run the Backend**
 
 ```bash
-.venv/bin/python app.py
+# Make sure your virtual environment is activated
+source .venv/bin/activate
+python app.py
 ```
 
-This will start a local web server, and you should see output similar to this:
+**Terminal 2: Run the Frontend**
 
-```
- * Serving Flask app 'app'
- * Debug mode: on
-WARNING: This is a development server. Do not use it in a production deployment.
-Use a production WSGI server instead.
- * Running on http://127.0.0.1:5001
-Press CTRL+C to quit
+```bash
+cd frontend
+npm run dev
 ```
 
-## 5. Access the Application
+This will start the Vite development server, typically on port 5173.
 
-Open your web browser and navigate to the following URL:
+## 6. Access the Application
 
-[http://127.0.0.1:5001](http://127.0.0.1:5001)
+Open your web browser and navigate to the URL provided by the Vite development server (e.g., `http://localhost:5173`).
 
-You can now use the application to search for companies and view their financial data.
+## 7. Building for Production
+
+To build the frontend for production, run the following command in the `frontend` directory:
+
+```bash
+npm run build
+```
+
+This will create a `dist` directory with the optimized and bundled assets. The Flask application is configured to serve these static files in a production environment.

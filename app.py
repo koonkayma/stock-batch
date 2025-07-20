@@ -1,7 +1,8 @@
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, send_from_directory
 import mysql.connector
+import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='frontend/dist', static_url_path='')
 
 # --- Database Configuration ---
 DB_CONFIG = {
@@ -15,10 +16,6 @@ DB_CONFIG = {
 def get_db_connection():
     conn = mysql.connector.connect(**DB_CONFIG)
     return conn
-
-@app.route('/')
-def index():
-    return render_template('index.html')
 
 @app.route('/api/companies')
 def get_companies():
@@ -60,6 +57,14 @@ def get_financials(cik):
         'columns': columns,
         'data': financials
     })
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(app.static_folder + '/' + path):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
