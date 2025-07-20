@@ -5,6 +5,7 @@ import os
 import gzip
 import mariadb
 import logging
+import argparse
 
 # --- Configuration ---
 # Database credentials
@@ -56,7 +57,7 @@ METRIC_MAP = {
         lambda d: (d.get('PaymentsOfDividends', 0) / d.get('shares_outstanding')) if d.get('shares_outstanding') and d.get('PaymentsOfDividends') else None
     ],
     # This tag holds the total dividend payment amount, used in the calculation above.
-    'PaymentsOfDividends': 'PaymentsOfDividends',
+    'PaymentsOfDividends': 'PaymentsOfDividendsCommonStock',
     'gross_margin': lambda d: (d.get('gross_profit', 0) / d.get('revenue')) if d.get('revenue') else None,
     'operating_margin': lambda d: (d.get('operating_income', 0) / d.get('revenue')) if d.get('revenue') else None,
     'profit_margin': lambda d: (d.get('net_income', 0) / d.get('revenue')) if d.get('revenue') else None,
@@ -131,8 +132,8 @@ def populate_companies_table(conn, tickers_file):
     # The JSON is a dictionary where the values are the company data
     company_list = [(c['cik_str'], c['ticker'], c['title']) for c in companies.values()]
     
-    # Use REPLACE INTO to insert new records or update existing ones
-    sql = "REPLACE INTO sec_companies (cik, ticker, title) VALUES (?, ?, ?)"
+    # Use INSERT ... ON DUPLICATE KEY UPDATE to insert new records or update existing ones
+    sql = "INSERT INTO sec_companies (cik, ticker, title) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE ticker = VALUES(ticker), title = VALUES(title)"
     
     try:
         cursor.executemany(sql, company_list)
@@ -258,6 +259,10 @@ def gzip_file(file_path):
 
 def main():
     """Main function to orchestrate the entire ETL process."""
+    parser = argparse.ArgumentParser(description='Import SEC data for one or all tickers.')
+    parser.add_argument('--ticker', type=str, help='Specify a single ticker to process.')
+    args = parser.parse_args()
+
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
 
@@ -278,13 +283,22 @@ def main():
         with open(tickers_file, 'r') as f:
             companies = json.load(f)
 
-        logging.info(f"Starting to process {len(companies)} companies...")
+        if args.ticker:
+            # Filter for the specified ticker
+            companies_to_process = {k: v for k, v in companies.items() if v['ticker'] == args.ticker.upper()}
+            if not companies_to_process:
+                logging.error(f"Ticker {args.ticker} not found in the list.")
+                return
+        else:
+            companies_to_process = companies
+
+        logging.info(f"Starting to process {len(companies_to_process)} companies...")
         
-        for i, company in enumerate(companies.values()):
+        for i, company in enumerate(companies_to_process.values()):
             cik_str = str(company['cik_str']).zfill(10)
             ticker = company['ticker']
             
-            logging.info(f"({i+1}/{len(companies)}) Processing {ticker} (CIK: {cik_str})")
+            logging.info(f"({i+1}/{len(companies_to_process)}) Processing {ticker} (CIK: {cik_str})")
             
             # Download the data
             file_path = os.path.join(DATA_DIR, f"CIK{cik_str}.json")
