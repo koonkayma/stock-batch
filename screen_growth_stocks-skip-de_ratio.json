@@ -1,0 +1,14 @@
+{
+    "min_fiscal_years": 5,
+    "min_revenue_cagr_percent": 10.0,
+    "min_operating_income_cagr_percent": 8.0,
+    "min_positive_fcf_percent": 75.0,
+    "roe": {
+        "min_fiscal_years_percent": 80.0,
+        "min_value_percent": 15.0
+    },
+    "roic": {
+        "min_fiscal_years_percent": 80.0,
+        "min_value_percent": 12.0
+    }
+}

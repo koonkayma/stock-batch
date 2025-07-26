@@ -57,10 +57,15 @@ SEC_USER_AGENT = 'Your Company Name or Project Name your.email@example.com'
 
 Once the dependencies are installed and the configuration is set, you can run the script from your terminal:
 
+To process all companies:
 ```bash
 .venv/bin/python import_all_sec_data.py
 ```
 
+To process a specific ticker (e.g., AAPL):
+```bash
+.venv/bin/python import_all_sec_data.py --ticker AAPL
+```
 ### What the Script Does:
 
 *   **Downloads Company List:** It first downloads `company_tickers.json` from the SEC, which contains a list of all public companies.

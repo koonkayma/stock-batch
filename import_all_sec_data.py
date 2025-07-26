@@ -6,6 +6,7 @@ import gzip
 import mariadb
 import logging
 import argparse
+import yfinance as yf
 
 # --- Configuration ---
 # Database credentials
@@ -25,7 +26,7 @@ DATA_DIR = 'sec_data'
 # --- Logging Setup ---
 LOG_FILE = 'etl.log'
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.INFO, # Changed back to INFO for less verbose output
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler(LOG_FILE),
@@ -34,8 +35,6 @@ logging.basicConfig(
 )
 
 # --- Financial Metric Mapping and Calculation Logic ---
-# This dictionary maps desired metric names to their logic (direct GAAP tag, a list of fallback tags, or a calculation).
-# Using lists allows the script to check for multiple possible GAAP tags in order of preference.
 METRIC_MAP = {
     'revenue': ['RevenueFromContractWithCustomerExcludingAssessedTax', 'Revenues'],
     'cost_of_revenue': ['CostOfGoodsAndServicesSold', 'CostOfRevenue'],
@@ -49,20 +48,18 @@ METRIC_MAP = {
     'pretax_income': ['IncomeLossFromContinuingOperationsBeforeIncomeTaxExtraordinaryItemsNoncontrollingInterest', 'IncomeLossBeforeIncomeTaxes'],
     'income_tax_expense': 'IncomeTaxExpenseBenefit',
     'net_income': ['NetIncomeLoss', 'ProfitLoss', 'NetIncomeLossAvailableToCommonStockholdersBasic'],
-    'shares_outstanding': ['WeightedAverageNumberOfDilutedSharesOutstanding', 'WeightedAverageNumberOfSharesOutstandingDiluted', 'WeightedAverageNumberOfSharesOutstandingBasic'],
+    'shares_outstanding': ['CommonStockSharesOutstanding', 'WeightedAverageNumberOfDilutedSharesOutstanding', 'WeightedAverageNumberOfSharesOutstandingDiluted', 'WeightedAverageNumberOfSharesOutstandingBasic'],
     'eps': ['EarningsPerShareDiluted', 'EarningsPerShareBasic'],
     'dividend_per_share': [
         'CommonStockDividendsPerShareDeclared',
-        # Fallback calculation if the per-share tag is not available
         lambda d: (d.get('PaymentsOfDividends', 0) / d.get('shares_outstanding')) if d.get('shares_outstanding') and d.get('PaymentsOfDividends') else None
     ],
-    # This tag holds the total dividend payment amount, used in the calculation above.
     'PaymentsOfDividends': 'PaymentsOfDividendsCommonStock',
     'gross_margin': lambda d: (d.get('gross_profit', 0) / d.get('revenue')) if d.get('revenue') else None,
     'operating_margin': lambda d: (d.get('operating_income', 0) / d.get('revenue')) if d.get('revenue') else None,
     'profit_margin': lambda d: (d.get('net_income', 0) / d.get('revenue')) if d.get('revenue') else None,
     'cash_and_equivalents': 'CashAndCashEquivalentsAtCarryingValue',
-    'short_term_investments': 'MarketableSecuritiesCurrent',
+    'short_term_investments': ['MarketableSecuritiesCurrent', 'ShortTermInvestments'],
     'cash_and_short_term_investments': lambda d: d.get('cash_and_equivalents', 0) + d.get('short_term_investments', 0),
     'receivables': 'AccountsReceivableNetCurrent',
     'inventory': 'InventoryNet',
@@ -75,12 +72,12 @@ METRIC_MAP = {
     'accounts_payable': 'AccountsPayableCurrent',
     'accrued_expenses': 'AccruedLiabilitiesCurrent',
     'current_portion_of_long_term_debt': 'LongTermDebtAndCapitalLeaseObligationsCurrent',
-    'total_current_liabilities': 'LiabilitiesCurrent',
+    'total_current_liabilities': ['LiabilitiesCurrent', 'Liabilities'],
     'long_term_debt': 'LongTermDebtNoncurrent',
-    'total_liabilities': 'Liabilities',
+    'total_liabilities': ['Liabilities', lambda d: d.get('total_current_liabilities', 0) + d.get('long_term_debt', 0)],
     'shareholders_equity': 'StockholdersEquity',
     'total_liabilities_and_equity': lambda d: d.get('total_liabilities', 0) + d.get('shareholders_equity', 0),
-    'depreciation_and_amortization': 'DepreciationAndAmortization',
+    'depreciation_and_amortization': ['Depreciation', 'DepreciationDepletionAndAmortization', 'DepreciationAndAmortization', 'DepreciationDepletionAndAmortizationExpense'],
     'stock_based_compensation': 'ShareBasedCompensation',
     'operating_cash_flow': 'NetCashProvidedByUsedInOperatingActivities',
     'capital_expenditures': ['PaymentsToAcquirePropertyPlantAndEquipment', 'CapitalExpenditures'],
@@ -91,6 +88,8 @@ METRIC_MAP = {
     'working_capital': lambda d: d.get('total_current_assets', 0) - d.get('total_current_liabilities', 0),
     'book_value_per_share': lambda d: (d.get('shareholders_equity', 0) / d.get('shares_outstanding')) if d.get('shares_outstanding') else None,
     'Dividend_Payout_Ratio': lambda d: (d.get('PaymentsOfDividends', 0) / d.get('net_income')) if d.get('net_income') else None,
+    'EBITDA': lambda d: d.get('operating_income', 0) + d.get('depreciation_and_amortization', 0) if d.get('operating_income') is not None and d.get('depreciation_and_amortization') is not None else None,
+    'ev': lambda d: (d.get('price', 0) * d.get('shares_outstanding', 0)) + d.get('total_liabilities', 0) - d.get('cash_and_short_term_investments', 0) if d.get('price') and d.get('shares_outstanding') and d.get('total_liabilities') is not None and d.get('cash_and_short_term_investments') is not None else None,
 }
 
 def get_db_connection():
@@ -106,6 +105,27 @@ def get_db_connection():
         return conn
     except mariadb.Error as e:
         logging.error(f"Error connecting to MariaDB Platform: {e}")
+        return None
+
+def get_stock_price(ticker):
+    """Fetches the current stock price for a given ticker."""
+    if not ticker:
+        return None
+    try:
+        stock = yf.Ticker(ticker)
+        price = stock.info.get('regularMarketPrice') or stock.info.get('currentPrice')
+        if price:
+            logging.info(f"Fetched price for {ticker}: {price}")
+            return price
+        else:
+            hist = stock.history(period="2d")
+            if not hist.empty:
+                return hist['Close'].iloc[-1]
+            else:
+                logging.warning(f"Could not fetch price for {ticker} from yfinance.")
+                return None
+    except Exception as e:
+        logging.error(f"Error fetching price for {ticker} from yfinance: {e}")
         return None
 
 def download_company_tickers():
@@ -130,10 +150,8 @@ def populate_companies_table(conn, tickers_file):
     with open(tickers_file, 'r') as f:
         companies = json.load(f)
     
-    # The JSON is a dictionary where the values are the company data
     company_list = [(c['cik_str'], c['ticker'], c['title']) for c in companies.values()]
     
-    # Use INSERT ... ON DUPLICATE KEY UPDATE to insert new records or update existing ones
     sql = "INSERT INTO sec_companies (cik, ticker, title) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE ticker = VALUES(ticker), title = VALUES(title)"
     
     try:
@@ -151,14 +169,14 @@ def process_and_load_financials(conn, cik, ticker, file_path):
         company_data = json.load(f)
 
     if 'us-gaap' not in company_data.get('facts', {}):
-        return # Skip if no US-GAAP data
+        return
 
-    # Group all annual data points by fiscal year
+    current_price = get_stock_price(ticker)
+
     data_by_year = {}
     for metric, details in company_data['facts']['us-gaap'].items():
         try:
             for item in details.get('units', {}).get('USD', []):
-                # Allow various annual forms (10-K, 20-F, 40-F, etc.) that have a fiscal year
                 if item.get('fp') == 'FY' and 'form' in item:
                     year = item['fy']
                     if year not in data_by_year:
@@ -166,47 +184,36 @@ def process_and_load_financials(conn, cik, ticker, file_path):
                             'cik': str(cik).zfill(10), 
                             'fiscal_year': year, 
                             'filing_date': item.get('filed'),
-                            'form': item.get('form')  # Store the form type
+                            'form': item.get('form')
                         }
                     data_by_year[year][metric] = item['val']
         except KeyError:
             continue
 
-    # Calculate derived metrics and prepare for insertion
     records_to_insert = []
     for year, year_data_raw in data_by_year.items():
         record = {
             'cik': year_data_raw['cik'], 
             'fiscal_year': year_data_raw['fiscal_year'], 
             'filing_date': year_data_raw.get('filing_date'),
-            'form': year_data_raw.get('form') # Add form to the record
+            'form': year_data_raw.get('form'),
+            'price': current_price
         }
         
-        # Get direct values
+        # First, get all direct values from the raw data
         for name, gaap_tags in METRIC_MAP.items():
             if isinstance(gaap_tags, str):
                 record[name] = year_data_raw.get(gaap_tags)
             elif isinstance(gaap_tags, list):
-                # Find the first available tag or successful calculation in the list
                 for tag in gaap_tags:
                     if isinstance(tag, str) and tag in year_data_raw:
                         record[name] = year_data_raw[tag]
-                        break  # Found a value, move to the next metric
-                    elif callable(tag):
-                        try:
-                            # Attempt the calculation
-                            result = tag(record)
-                            if result is not None:
-                                record[name] = result
-                                break # Calculation successful
-                        except (TypeError, ZeroDivisionError):
-                            continue # Try the next item in the list
+                        break
                 else:
-                    # If the loop completes without finding a tag or a successful calculation
                     if name not in record:
-                       record[name] = None
-        
-        # Get calculated values
+                        record[name] = None
+
+        # Now, calculate the derived metrics
         for name, logic in METRIC_MAP.items():
             if callable(logic):
                 try:
@@ -214,9 +221,7 @@ def process_and_load_financials(conn, cik, ticker, file_path):
                 except (TypeError, ZeroDivisionError):
                     record[name] = None
         
-        # --- Data Quality Warning ---
-        # Check if critical fields are missing and log a warning if they are.
-        critical_fields = ['revenue', 'net_income', 'operating_cash_flow']
+        critical_fields = ['revenue', 'net_income', 'operating_cash_flow', 'eps']
         for field in critical_fields:
             if record.get(field) is None:
                 logging.warning(f"Could not find any matching tag for '{field}' for {ticker} in FY{year}.")
@@ -226,11 +231,8 @@ def process_and_load_financials(conn, cik, ticker, file_path):
     if not records_to_insert:
         return
 
-    # Insert into database
     cursor = conn.cursor()
     
-    # Prepare the SQL statement dynamically based on the keys in our records
-    # This makes the script robust if we add/remove fields from METRIC_MAP
     columns = records_to_insert[0].keys()
     sql = f"REPLACE INTO sec_financial_reports ({', '.join(columns)}) VALUES ({', '.join(['?'] * len(columns))})"
     
@@ -256,7 +258,6 @@ def gzip_file(file_path):
             f_out.writelines(f_in)
     
     os.remove(file_path)
-    # logging.info(f"Archived to {gz_path}")
 
 def main():
     """Main function to orchestrate the entire ETL process."""
@@ -272,7 +273,6 @@ def main():
         return
 
     try:
-        # Step 1: Get company list and populate companies table
         tickers_file = download_company_tickers()
         if tickers_file:
             populate_companies_table(conn, tickers_file)
@@ -280,12 +280,10 @@ def main():
             logging.error("Could not download company list. Exiting.")
             return
             
-        # Step 2: Iterate through all companies and process their data
         with open(tickers_file, 'r') as f:
             companies = json.load(f)
 
         if args.ticker:
-            # Filter for the specified ticker
             companies_to_process = {k: v for k, v in companies.items() if v['ticker'] == args.ticker.upper()}
             if not companies_to_process:
                 logging.error(f"Ticker {args.ticker} not found in the list.")
@@ -301,7 +299,6 @@ def main():
             
             logging.info(f"({i+1}/{len(companies_to_process)}) Processing {ticker} (CIK: {cik_str})")
             
-            # Download the data
             file_path = os.path.join(DATA_DIR, f"CIK{cik_str}.json")
             url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_str}.json"
             
@@ -311,16 +308,13 @@ def main():
                 with open(file_path, 'w') as f:
                     json.dump(response.json(), f)
                 
-                # Process and load into DB
                 process_and_load_financials(conn, cik_str, ticker, file_path)
                 
-                # Archive the file
                 gzip_file(file_path)
 
             except requests.exceptions.RequestException as e:
                 logging.error(f"Failed to download data for {ticker}: {e}")
             
-            # IMPORTANT: Respect SEC rate limit
             time.sleep(0.1)
 
     finally:

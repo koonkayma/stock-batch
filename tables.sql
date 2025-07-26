@@ -65,6 +65,9 @@ CREATE TABLE sec_financial_reports (
     book_value_per_share DECIMAL(10, 4),
     PaymentsOfDividends DECIMAL(19, 4),
     Dividend_Payout_Ratio DECIMAL(10, 4),
+    EBITDA DECIMAL(19, 4),
+    price DECIMAL(19, 4),
+    ev DECIMAL(19, 4),
 
     -- Record Keeping
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
