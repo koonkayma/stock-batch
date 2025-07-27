@@ -57,6 +57,8 @@ The `calculate_cagr` function has been removed from the script.
 To run the script, use the following command in your terminal:
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 .venv/bin/python screen_growth_flat_stocks.py --config screen_growth_flat_stocks.json --output growth_flat_stocks.csv
 ```
 

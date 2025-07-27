@@ -36,8 +36,12 @@ const chartCanvas = ref(null);
 let chartInstance = null;
 
 const tableRows = computed(() => {
+  console.log(`FinancialChartCard: Computing tableRows for metric: ${props.metric}`);
+  console.log("FinancialChartCard: financialData.data for tableRows:", props.financialData.data);
   const labels = props.financialData.data.map(d => d.fiscal_year);
   const values = props.financialData.data.map(d => d[props.metric]);
+  console.log("FinancialChartCard: Labels for tableRows:", labels);
+  console.log("FinancialChartCard: Values for tableRows:", values);
   return labels.map((year, i) => {
     const value = values[i];
     let percentageChange = 'N/A';
@@ -51,12 +55,16 @@ const tableRows = computed(() => {
 });
 
 const renderChart = () => {
+  console.log(`FinancialChartCard: Rendering chart for metric: ${props.metric}`);
+  console.log("FinancialChartCard: financialData.data for chart:", props.financialData.data);
   if (chartInstance) {
     chartInstance.destroy();
   }
   if (chartCanvas.value) {
     const labels = props.financialData.data.map(d => d.fiscal_year);
     const values = props.financialData.data.map(d => d[props.metric]);
+    console.log("FinancialChartCard: Labels for chart:", labels);
+    console.log("FinancialChartCard: Values for chart:", values);
     chartInstance = new Chart(chartCanvas.value.getContext('2d'), {
       type: 'line',
       data: {

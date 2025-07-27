@@ -2,8 +2,9 @@
     "min_fiscal_years": 5,
     "min_revenue_percent": 5.0,
     "min_operating_income_percent": 5.0,
+    "min_positive_fcf_percent": 50.0,
     "roe": {
         "min_fiscal_years_percent": 50.0,
-        "min_value_percent": 3.0
-    }
+        "min_value_percent": 5.0
+    }        
 }

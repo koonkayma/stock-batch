@@ -1,0 +1,77 @@
+Product Requirements Document: Stock Watchlist Feature
+
+1.  **Introduction**
+    This document outlines the requirements for a new "Watchlist" feature to be integrated into the existing stock analysis application. The feature will allow users to create and manage multiple watchlists, track stock performance, and add custom notes with rich text capabilities.
+
+2.  **Features**
+
+    2.1. **Watchlist Management**
+        *   Users can create multiple watchlists.
+        *   Users can name each watchlist.
+        *   Users can select a specific watchlist to view.
+
+    2.2. **Stock Management within Watchlist**
+        *   Users can add stocks to a selected watchlist by entering a ticker symbol.
+        *   Upon entering a ticker, the system should auto-suggest/display the company name.
+        *   The system should fetch and display the latest PE ratio for the added stock (from `sec_financial_reports` or via API if not available in our tables).
+
+    2.3. **Rich Text Notes**
+        *   Each stock record in a watchlist should have a "Notes" field.
+        *   The "Notes" field should support rich text editing, including:
+            *   Bold text
+            *   Highlighting
+            *   Copy-pasting of text and potentially images (if feasible within a web-based rich text editor).
+        *   Content within the "Notes" field should be searchable.
+
+    2.4. **Table Customization**
+        *   Users should be able to adjust the width and length of cells within the watchlist table.
+
+    2.5. **Tagging and Filtering**
+        *   Users can create custom tags.
+        *   Users can assign multiple tags to a single stock record within a watchlist.
+        *   Users can filter watchlist records by selecting one or more tags.
+
+    2.6. **Integration with Existing UI**
+        *   A new menu item or navigation element should be added to the frontend (e.g., next to the existing "SEC-Financial-Data-Viewer" link) to access the Watchlist feature.
+
+3.  **Technical Requirements**
+
+    3.1. **Database Schema**
+        *   New database table(s) with the prefix `watch_list_` should be created to store watchlist data.
+        *   Tables should support:
+            *   Watchlist names.
+            *   Stock ticker and associated company name.
+            *   Latest PE ratio.
+            *   Rich text notes (consider appropriate data type for rich text/HTML content).
+            *   Tag management (many-to-many relationship between stocks and tags).
+
+    3.2. **API Endpoints**
+        *   New Flask API endpoints in `app.py` for:
+            *   Creating, reading, updating, and deleting watchlists.
+            *   Adding, updating, and deleting stocks within a watchlist.
+            *   Fetching stock details (company name, PE ratio) for auto-suggestion.
+            *   Managing tags (create, assign, remove).
+            *   Searching notes content.
+
+    3.3. **Frontend Development**
+        *   Vue.js components for:
+            *   Watchlist selection/creation UI.
+            *   Table display of watchlist stocks.
+            *   Rich text editor for notes (e.g., using a library like Quill.js or TinyMCE).
+            *   Tag input and filtering UI.
+            *   Resizable table cells (consider a Vue.js table component with resizing capabilities).
+
+    3.4. **Data Fetching**
+        *   Utilize existing `sec_financial_reports` and `sec_companies` tables for stock data where possible.
+        *   Implement logic to fetch PE ratio if not directly available or up-to-date in local tables.
+
+4.  **Out of Scope**
+    *   Real-time stock price updates.
+    *   User authentication/authorization (assume single user for now).
+    *   Complex charting within the watchlist.
+
+5.  **Open Questions/Assumptions**
+    *   Assumption: Rich text editor will store content as HTML or a similar markup format.
+    *   Assumption: Image embedding in notes will be handled by base64 encoding or URL references, depending on the chosen rich text editor library and storage considerations.
+    *   Clarification: Specific rich text editor library to use (e.g., Quill.js, TinyMCE)? (Suggest Quill.js for simplicity if no preference).
+    *   Clarification: How to handle large notes content for searching performance? (Initial implementation can be simple LIKE queries, optimize later if needed).
