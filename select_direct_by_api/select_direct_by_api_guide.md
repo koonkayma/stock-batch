@@ -106,3 +106,33 @@ Logs are located in the `logs/` directory with timestamped names: `execution-YYY
 - **Pivot**: The most recent quarter must report a positive Net Income.
 - **Clean Profit**: Positive Net Income must be backed by positive Operating Cash Flow.
 - **Acceleration**: The rate of growth in Net Income (2nd derivative) must be positive.
+
+---
+
+## 6. Version Control with Git & GitHub
+
+This project uses Git for tracking changes and GitHub for remote collaboration.
+
+### Standard Workflow
+1. **Stage Changes**: Prepare your modified files for a commit.
+   ```bash
+   git add .
+   ```
+2. **Commit**: Save a snapshot of your changes locally with a descriptive message.
+   ```bash
+   git commit -m "Describe your changes here"
+   ```
+3. **Push**: Upload your local commits to the remote repository on GitHub.
+   ```bash
+   git push origin main
+   ```
+
+### Safety & Best Practices
+- **Security Check**: Never commit files containing secrets (API keys, Personal Access Tokens). The project is configured with a `.gitignore` file to automatically exclude:
+  - `stock_selection_config.json` (Your API keys)
+  - `*_Chat.txt` (Conversation logs that may contain tokens)
+  - `data/` and `logs/` (Large or temporary data files)
+- **Blocked Pushes**: If GitHub blocks a push due to "Secret Scanning", do **not** force it. 
+  1. Undo your commit: `git reset --soft HEAD~1`.
+  2. Remove the sensitive file from your history: `git rm --cached <filename>`.
+  3. Ensure the file is in `.gitignore`, then re-commit and push.
