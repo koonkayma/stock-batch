@@ -83,6 +83,14 @@ Results are saved to a CSV file (`output_YYYYMMDD_HHMMSS.csv`) and specific Mark
 - **Rule of 40**
 - **FCF Margin**
 
+#### Markdown Report Columns (Loss to Earn):
+- **Ticker**
+- **Signal**
+- **Distressed Qtrs**
+- **Current NI (Q0)**
+- **Prev NI (Q1)**
+- **Acceleration**
+
 ### Log Files
 Logs are located in the `logs/` directory with timestamped names: `execution-YYYY-MM-DD_HH-MM-SS.log`.
 - **INFO**: General progress (ticker being processed).
@@ -117,11 +125,11 @@ Logs are located in the `logs/` directory with timestamped names: `execution-YYY
 - **Solvency**: Checks for improvement in the Interest Coverage Ratio (moving from <1.5 towards >3.0).
 - **Governance**: (Optional) Detects CEO/CFO changes in recent 8-K filings.
 
-### Loss to Earn Strategy (Trough-and-Pivot)
+### Loss to Earn Strategy (Narrowing Losses)
 - **Distress**: Must have negative Net Income in at least 4 of the last 6 quarters.
-- **Pivot**: The most recent quarter must report a positive Net Income.
-- **Clean Profit**: Positive Net Income must be backed by positive Operating Cash Flow.
-- **Acceleration**: The rate of growth in Net Income (2nd derivative) must be positive.
+- **Current Distress**: The most recent quarter ($Q_0$) must be negative.
+- **Improvement**: Loss must be narrowing ($Q_0 > Q_{-1}$).
+- **Acceleration**: The rate of recovery (2nd derivative) must be positive.
 
 ---
 
@@ -143,23 +151,45 @@ This project uses Git for tracking changes and GitHub for remote collaboration.
    git push origin main
    ```
 
-### Branching and Collaboration
-To work on a new feature or logic update without affecting the main code:
+### Detailed Feature Branch Workflow
+Follow this exact procedure to work on a new feature and safely merge it into the main project:
+
 1. **Create and Switch to a New Branch**:
+   Start fresh from the current state of `main`.
    ```bash
    git checkout -b feature-branch-name
    ```
-2. **List All Local Branches**:
+
+2. **Modify and Test**:
+   Make your changes to the code (e.g., in `src/strategies/growth.py`).
+
+3. **Stage, Commit, and Push the Feature Branch**:
+   Save your work and upload it to GitHub for backup or review.
    ```bash
-   git branch
+   git add .
+   git commit -m "Detailed message about your changes"
+   git push origin feature-branch-name
    ```
-3. **Switch to an Existing Branch**:
+
+4. **Merge into Main**:
+   Once you are satisfied with the changes on your feature branch:
+   - **Switch back to main**:
+     ```bash
+     git checkout main
+     ```
+   - **Merge the feature branch**:
+     ```bash
+     git merge feature-branch-name
+     ```
+   - **Push the updated main branch**:
+     ```bash
+     git push origin main
+     ```
+
+5. **Clean Up (Optional)**:
+   After the merge is successful, you can delete the local feature branch:
    ```bash
-   git checkout branch-name
-   ```
-4. **Push a Branch to GitHub**:
-   ```bash
-   git push origin branch-name
+   git branch -d feature-branch-name
    ```
 
 ### Safety & Best Practices

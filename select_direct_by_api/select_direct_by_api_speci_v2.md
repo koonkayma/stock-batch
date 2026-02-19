@@ -80,18 +80,21 @@ The primary algorithmic requirement is a verified Operating Margin (EBIT) Inflec
 
 Beyond pure margin expansion, the algorithm incorporates advanced corporate governance and credit stabilization signals. The system must parse unstructured Form 8-K filings to detect management signaling—specifically the replacement of the Chief Executive Officer (CEO) or Chief Financial Officer (CFO)—which historically serves as the primary catalyst for a strategic corporate pivot.16 Simultaneously, the system must calculate the Interest Coverage Ratio (![][image7]). The strategy strictly requires documented improvement from distressed credit levels (less than 1.5x coverage) toward a safer, stable threshold (greater than 3.0x coverage), mathematically proving that the company is no longer at imminent risk of technical default or bankruptcy.16 A final, highly predictive signal sought by the algorithm is the resumption of dividend payments after a protracted period of suspension, which acts as the executive management's ultimate vote of confidence in the turnaround's durability and future cash generation capabilities.
 
-### **The Loss to Earn Strategy: Trough-and-Pivot Analysis**
+### **The Loss to Earn Strategy: Narrowing Losses and Trajectory Analysis**
 
-Operating as a highly specialized, mathematically aggressive sub-type of the broader Turnaround logic, the Loss to Earn Strategy specifically targets the rare transition from chronic, systemic unprofitability to positive GAAP earnings. This complex algorithm executes a "Trough-and-Pivot" analysis over an extensive eight-quarter rolling historical window.16
+Operating as a highly specialized, mathematically aggressive sub-type of the broader Turnaround logic, the Loss to Earn Strategy targets companies that are still operating at a net loss but demonstrate a verifiable, mathematically accelerating trend toward profitability. This complex algorithm executes a trajectory analysis over an extensive eight-quarter rolling historical window.16
 
-The logic requires the system to first verify the undeniable existence of a "Distressed Phase." Within the preceding six quarters, the target corporate entity must have reported negative Net Income in at least four distinct periods.16 This high failure threshold ensures the asset is genuinely distressed and not simply experiencing a standard, minor macroeconomic fluctuation or cyclical downturn. The critical "Pivot Point" is mathematically defined as the most recent quarter (![][image4]) officially reporting a positive Net Income.16
+The logic requires the system to first verify the undeniable existence of a "Distressed Phase." Within the preceding six quarters, the target corporate entity must have reported negative Net Income in at least four distinct periods, and importantly, the most recent quarter ($Q_0$) must also report a negative Net Income. This ensures the asset is genuinely distressed and allows the quantitative system to identify the opportunity before the broader market recognizes a finalized, positive earnings print.
 
-To prevent the algorithm from being disastrously deceived by accounting artifacts—such as a massive one-time asset sale, a favorable legal settlement, or a sudden tax adjustment that temporarily and artificially inflates Net Income—the system executes a mandatory "Clean Profit Check." This rule dictates that the newly positive Net Income must be closely correlated with a positive Operating Cash Flow.16 If Net Income is positive but Operating Cash Flow remains deeply negative, the pivot is rejected as a mere accounting illusion.
+The critical mathematical component of this strategy is the dual requirement of Earnings Improvement and Earnings Acceleration. First, the first derivative of the earnings trajectory must be positive, meaning the absolute value of the net loss is actively shrinking sequentially ($\text{Earnings}_{Q_0} > \text{Earnings}_{Q_{-1}}$).
 
-The most advanced mathematical component of this strategy is the Earnings Acceleration requirement. The system must calculate the second derivative of the earnings trajectory to ensure the financial recovery is aggressively gaining momentum. The acceleration value is calculated as:
+Second, the system must calculate the second derivative of the earnings trajectory to ensure the financial recovery is aggressively gaining momentum. The acceleration value is calculated as:
 
-![][image8]  
-For the condition to be successfully met, this calculated acceleration value must be strictly positive (\> 0).16 This rigorous mathematical constraint indicates that not only is the company growing its earnings out of the trough, but the actual rate of that growth is itself increasing, providing a powerful, undeniable signal of explosive post-trough operational recovery.
+$$
+\text{Acceleration} = (\text{Earnings}_{Q_0} - \text{Earnings}_{Q_{-1}}) - (\text{Earnings}_{Q_{-1}} - \text{Earnings}_{Q_{-2}})
+$$
+
+For the condition to be successfully met, this calculated acceleration value must be strictly positive ($> 0$).16 This rigorous mathematical constraint indicates that not only are the company's losses narrowing, but the actual rate at which they are narrowing is increasing, providing a powerful, undeniable signal of impending operational profitability prior to an actual positive earnings pivot.
 
 
 
