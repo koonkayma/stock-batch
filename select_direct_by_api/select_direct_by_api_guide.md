@@ -246,3 +246,21 @@ python3 -m src.main --batch
 
 > [!TIP]
 > **Keep Your Data Archive**: You do **not** need to delete `data/archive/` to start a fresh run. Keeping these `.gz` files allows the program to reuse previously fetched SEC data, making the new run significantly faster.
+
+---
+
+## 8. Packaging for Distribution
+
+If you need to share or archive the codebase while excluding large data and log files (but keeping the directory structure), use the following `tar` command from the parent directory:
+
+```bash
+tar -cvzf select_direct_by_api.tar.gz select_direct_by_api \
+  --exclude='select_direct_by_api/data/*/*' \
+  --exclude='select_direct_by_api/logs/*'
+```
+
+### What this does:
+- Creates a compressed archive `select_direct_by_api.tar.gz`.
+- Includes all source code and configuration files.
+- Includes the `logs/` and `data/raw/`, `data/archive/` folders (so the program runs immediately after extraction).
+- **Excludes** the actual `.log`, `.json`, and `.gz` files inside those folders to minimize archive size.
