@@ -58,6 +58,7 @@ class StockData:
     pe_ratio: Optional[float] = None
     dividend_yield: Optional[float] = None
     payout_ratio_ttm: Optional[float] = None
+    dividend_growth_cagr: Optional[float] = None
     
     def sort_annuals(self):
         """Sorts annual financials by fiscal year ascending."""

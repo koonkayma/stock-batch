@@ -117,38 +117,53 @@ class SecClient:
         # Extract core metrics
         net_income = get_annual_values("NetIncomeLoss")
         ocf = get_annual_values("NetCashProvidedByUsedInOperatingActivities")
-        
-        # Quarterly Data Extraction (New)
         q_net_income = get_quarterly_values("NetIncomeLoss")
         
-        # CapEx: Merge tags
-        capex_1 = get_annual_values("PaymentsToAcquirePropertyPlantAndEquipment")
-        capex_2 = get_annual_values("PaymentsToAcquireProductiveAssets")
-        capex = {**capex_1, **capex_2} # capex_2 overwrites capex_1 if conflict (usually safe)
-        
-        assets = get_annual_values("Assets")
-        equity = get_annual_values("StockholdersEquity")
-        debt_current = get_annual_values("LongTermDebtCurrent")
-        debt_noncurrent = get_annual_values("LongTermDebtNoncurrent")
-        
-        # Revenue: Merge tags (prioritize implementation tags over generic)
+        # Revenue: Merge tags
         rev_1 = get_annual_values("SalesRevenueNet")
         rev_2 = get_annual_values("Revenues")
         rev_3 = get_annual_values("RevenueFromContractWithCustomerExcludingAssessedTax")
         # Merge order: rev3 > rev2 > rev1
         revenue = {**rev_1, **rev_2, **rev_3}
         
-        # Merge debt
+        # CapEx: Merge tags
+        capex_1 = get_annual_values("PaymentsToAcquirePropertyPlantAndEquipment")
+        capex_2 = get_annual_values("PaymentsToAcquireProductiveAssets")
+        capex = {**capex_1, **capex_2}
+        
+        # Solvency/Balance Sheet (Annual)
+        assets = get_annual_values("Assets")
+        
+        # Try multiple equity tags
+        equity = get_annual_values("StockholdersEquity")
+        if not equity:
+            equity = get_annual_values("StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest")
+            
+        # Try multiple debt tags
+        debt_current = get_annual_values("LongTermDebtCurrent")
+        if not debt_current:
+             debt_current = get_annual_values("DebtCurrent")
+             
+        debt_noncurrent = get_annual_values("LongTermDebtNoncurrent")
+        if not debt_noncurrent:
+             debt_noncurrent = get_annual_values("LongTermDebt")
+             
+        # Combine Debt and define all years
+        all_years_set = set(net_income.keys()) | set(revenue.keys()) | set(assets.keys()) | set(equity.keys()) | set(ocf.keys())
+        
         total_debt = {}
-        all_years = set(net_income.keys()) | set(ocf.keys()) | set(assets.keys()) | set(revenue.keys())
-        for y in all_years:
-            d_c = debt_current.get(y, 0)
-            d_nc = debt_noncurrent.get(y, 0)
-            total_debt[y] = d_c + d_nc
+        for y in all_years_set:
+            total_debt[y] = debt_current.get(y, 0) + debt_noncurrent.get(y, 0)
+            
+        # Fallback to Liabilities if debts found are 0
+        if all(v == 0 for v in total_debt.values()):
+             liabilities = get_annual_values("Liabilities")
+             if liabilities:
+                  total_debt = liabilities
 
         # Build objects
         financials = []
-        for y in sorted(all_years):
+        for y in sorted(all_years_set):
             fin = AnnualFinancials(
                 fiscal_year=y,
                 revenue=revenue.get(y),
@@ -215,6 +230,12 @@ class FinnhubClient:
          # For reported financials if needed as backup
          return self._request("/stock/financials-reported", {"symbol": ticker})
 
+    def get_basic_financials(self, ticker: str) -> Optional[Dict]:
+        """
+        Fetches basic financials (metrics) for a ticker.
+        """
+        return self._request("/stock/metric", {"symbol": ticker, "metric": "all"})
+
 
 # --- YFinance Client (Fallback) ---
 
@@ -231,5 +252,18 @@ class YFinanceClient:
              return yf.ticker.Ticker(ticker).history(period=period)
         except Exception as e:
              logger.error(f"yfinance error for {ticker}: {e}")
+             return None
+    def get_dividend_history(self, ticker: str) -> Optional[Any]:
+        """
+        Fetches dividend history for 5+ years.
+        Returns pandas Series or None.
+        """
+        rate_limiter.yfinance_limiter.consume()
+        try:
+             time.sleep(1)
+             tick = yf.Ticker(ticker)
+             return tick.dividends
+        except Exception as e:
+             logger.error(f"yfinance dividend error for {ticker}: {e}")
              return None
 

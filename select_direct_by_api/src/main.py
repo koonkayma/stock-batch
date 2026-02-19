@@ -73,6 +73,55 @@ def process_ticker(ticker: str, cik: str, clients) -> AnalysisReport:
         stock.sector = profile.get("finnhubIndustry")
         stock.market_cap = profile.get("marketCapitalization")
     
+    # 2.1 Fetch Basic Financials (Metrics for Dividend Strategy)
+    metrics = finnhub_client.get_basic_financials(ticker)
+    if metrics and "metric" in metrics:
+        m = metrics["metric"]
+        stock.dividend_yield = m.get("dividendYieldIndicatedAnnual")
+        pr = m.get("payoutRatioTTM")
+        if pr is not None:
+             stock.payout_ratio_ttm = pr / 100
+        else:
+             stock.payout_ratio_ttm = None
+    
+    # 2.2 Fetch Dividend History (YFinance) - Metric for Dividend Growth
+    # We only do this if dividend yield is present to save time/requests
+    if stock.dividend_yield and stock.dividend_yield > 0:
+        divs = yf_client.get_dividend_history(ticker)
+        if divs is not None and len(divs) > 0:
+             # Calculate 5-Year CAGR
+             # Logic: Sum dividends by year. 
+             # CAGR = (End_Value / Start_Value)^(1/n) - 1
+             try:
+                 # Resample to annual sum
+                 # Using 'A' for Annual (Year End) - compatible with older pandas
+                 annual_divs = divs.resample('A').sum()
+                 
+                 # We need at least 5 years of history
+                 if len(annual_divs) >= 6:
+                     # Get last full year and 5 years prior
+                     # e.g. 2024, 2023, 2022, 2021, 2020. 2019 is base.
+                     current_val = annual_divs.iloc[-2] # Last completed year (assuming current year incomplete)
+                     start_val = annual_divs.iloc[-7]   # 5 years before that? No, matching growth 5y logic
+                     
+                     # Simpler: Get most recent full year (last row might be partial 2025)
+                     # Let's check the last index
+                     last_date = annual_divs.index[-1]
+                     if last_date.year == datetime.now().year:
+                          # Current year is partial
+                          end_val = annual_divs.iloc[-2]
+                          start_val = annual_divs.iloc[-7] if len(annual_divs) >= 7 else annual_divs.iloc[0]
+                          years = len(annual_divs) - 2 if len(annual_divs) < 7 else 5
+                     else:
+                          end_val = annual_divs.iloc[-1]
+                          start_val = annual_divs.iloc[-6] if len(annual_divs) >= 6 else annual_divs.iloc[0]
+                          years = len(annual_divs) - 1 if len(annual_divs) < 6 else 5
+                     
+                     if start_val > 0 and years > 0:
+                         stock.dividend_growth_cagr = ((end_val / start_val) ** (1/years)) - 1
+             except Exception as e:
+                 logger.warning(f"Dividend CAGR calc error for {ticker}: {e}")
+
     # 3. strategies
     report = AnalysisReport(ticker=ticker)
     
@@ -80,7 +129,6 @@ def process_ticker(ticker: str, cik: str, clients) -> AnalysisReport:
     report.growth_result = growth.evaluate(stock.annuals)
     
     # Dividend
-    stock.payout_ratio_ttm = None 
     report.dividend_result = dividend.evaluate(stock)
     
     # Turnaround
@@ -88,6 +136,9 @@ def process_ticker(ticker: str, cik: str, clients) -> AnalysisReport:
     
     # Loss to Earn
     report.loss_to_earn_result = loss_to_earn.evaluate(stock)
+    
+    # Attach stock data to report for reference
+    report.stock = stock
     
     return report
 
@@ -242,7 +293,7 @@ def run():
 
         # Init Headers
         ensure_md_header(md_growth_path, ["Ticker", "Signal", "Years Analyzed", "Positive Years", "Skipped FCF Check?", "5-Yr CAGR", "Rule of 40", "FCF Margin"])
-        ensure_md_header(md_dividend_path, ["Ticker", "Signal", "Yield", "Payout Ratio", "Solvency Passed?", "FCF Coverage"])
+        ensure_md_header(md_dividend_path, ["Ticker", "Signal", "Yield", "Payout Ratio", "Hist. Growth (5Y)", "Solvency Passed?", "FCF Coverage"])
         ensure_md_header(md_turnaround_path, ["Ticker", "Signal", "Margin Improving?", "Interest Coverage"])
         ensure_md_header(md_loss2earn_path, ["Ticker", "Signal", "Distressed Qtrs", "Current NI (Q0)", "Prev NI (Q1)", "Acceleration"])
 
@@ -304,20 +355,33 @@ def run():
                         ]
                         append_md_row(md_growth_path, row)
 
-                    # Dividend
-                    if report.dividend_result and report.dividend_result.passed:
-                        d = report.dividend_result.details
-                        cov = d.get("interest_coverage", "N/A")
-                        if isinstance(cov, dict): cov = f"Curr: {cov.get('current',0):.2f}"
-                        row = [
-                            ticker,
-                            report.dividend_result.signal,
-                            d.get("yield", 0),
-                            d.get("safety", {}).get("payout_ratio", "N/A"),
-                            d.get("solvency", {}).get("passed", False),
-                            d.get("fcf_coverage_check", "-")
-                        ]
-                        append_md_row(md_dividend_path, row)
+                    # Dividend Row
+                    d_res = report.dividend_result
+                    if d_res and d_res.passed: # Only write if passed
+                        solvency = d_res.details.get("solvency", {})
+                        safety = d_res.details.get("safety", {})
+                        
+                        yield_val = d_res.details.get("yield")
+                        if yield_val: yield_val = f"{yield_val:.2f}%"
+                        
+                        payout = safety.get("payout_ratio")
+                        if payout: payout = f"{payout:.2%}"
+                        
+                        div_cagr_val = report.stock.dividend_growth_cagr
+                        div_cagr_str = "N/A"
+                        if div_cagr_val is not None:
+                             status = "Pass" if div_cagr_val > 0 else "Fail"
+                             div_cagr_str = f"{status} ({div_cagr_val:.2%})"
+                        
+                        solvency_passed = solvency.get("passed")
+                        fcf_cov = d_res.details.get("fcf_coverage_check", "N/A")
+                        
+                        append_md_row(md_dividend_path, [
+                            ticker, d_res.signal, yield_val, payout, div_cagr_str, solvency_passed, fcf_cov
+                        ])
+                    else:
+                         append_md_row(md_dividend_path, [ticker, d_res.signal if d_res else "N/A", None, None, None, None, None])
+                    # The original code only wrote if passed, so no else block for failed cases here.
 
                     # Turnaround
                     if report.turnaround_result and report.turnaround_result.passed:

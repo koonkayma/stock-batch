@@ -43,10 +43,13 @@ def evaluate(stock_data: StockData) -> StrategyResult:
         
         # Determine threshold based on sector
         sector = stock_data.sector.lower() if stock_data.sector else "general"
-        if "technology" in sector:
+        if any(kw in sector for kw in ["technology", "software", "internet"]):
             max_de = config.DIVIDEND_DE_TECH
-        elif "utility" in sector or "telecom" in sector or "bank" in sector or "financial" in sector:
+        elif any(kw in sector for kw in ["utility", "utilities", "telecom", "bank", "financial", "real estate", "reit", "insurance"]):
             max_de = config.DIVIDEND_DE_UTILITY
+        elif any(kw in sector for kw in ["beverages", "food", "staples", "consumer package goods"]):
+             # Allowing slightly higher leverage for mature defensive giants (KO, PG, etc)
+             max_de = 1.5
         else:
             max_de = config.DIVIDEND_DE_GENERAL
             

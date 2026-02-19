@@ -87,6 +87,15 @@ Results are saved to a CSV file (`output_YYYYMMDD_HHMMSS.csv`) and specific Mark
 - **Rule of 40**
 - **FCF Margin**
 
+#### Markdown Report Columns (Dividend):
+- **Ticker**
+- **Signal**
+- **Yield**
+- **Payout Ratio**
+- **Hist. Growth (5Y)**
+- **Solvency Passed?**
+- **FCF Coverage**
+
 #### Markdown Report Columns (Loss to Earn):
 - **Ticker**
 - **Signal**
@@ -123,6 +132,10 @@ Logs are located in the `logs/` directory with timestamped names: `execution-YYY
   - Potential: 0% - 35%
   - Risky: 55% - 95% (Requires FCF coverage check)
   - Trap: > 95% (Disqualified)
+- **Historical Growth (Informational)**: Checks the 5-Year Dividend CAGR.
+  - Sourced from Yahoo Finance.
+  - Displays `Pass (Value%)` if CAGR > 0, otherwise `Fail (Value%)`.
+  - **Note**: This is an informational metric and does not disqualify the stock.
 
 ### Turnaround Strategy
 - **Inflection**: Checks for **Sequential Improvement** in Operating Margin (EBIT) over the last 3 quarters.
