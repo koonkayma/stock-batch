@@ -3,16 +3,10 @@ import requests
 import time
 import os
 import gzip
-import shutil
 import mariadb
 import logging
 import argparse
 import yfinance as yf
-import gc
-try:
-    import psutil
-except ImportError:
-    psutil = None
 
 # --- Configuration ---
 # Database credentials
@@ -42,12 +36,9 @@ logging.basicConfig(
 
 # --- Financial Metric Mapping and Calculation Logic ---
 METRIC_MAP = {
-    'revenue': ['RevenueFromContractWithCustomerExcludingAssessedTax', 'Revenues', 'SalesRevenueNet', 'SalesRevenueGoodsNet', 'SalesRevenueServicesNet'],
-    'cost_of_revenue': ['CostOfGoodsAndServicesSold', 'CostOfRevenue', 'CostOfGoodsSold', 'CostOfServices'],
-    'gross_profit': [
-        'GrossProfit',
-        lambda d: d.get('revenue', 0) - d.get('cost_of_revenue', 0)
-    ],
+    'revenue': ['RevenueFromContractWithCustomerExcludingAssessedTax', 'Revenues'],
+    'cost_of_revenue': ['CostOfGoodsAndServicesSold', 'CostOfRevenue'],
+    'gross_profit': lambda d: d.get('revenue', 0) - d.get('cost_of_revenue', 0),
     'research_and_development': 'ResearchAndDevelopmentExpense',
     'selling_general_and_admin': 'SellingGeneralAndAdministrativeExpense',
     'operating_expenses': 'OperatingExpenses',
@@ -57,17 +48,17 @@ METRIC_MAP = {
     'pretax_income': ['IncomeLossFromContinuingOperationsBeforeIncomeTaxExtraordinaryItemsNoncontrollingInterest', 'IncomeLossBeforeIncomeTaxes'],
     'income_tax_expense': 'IncomeTaxExpenseBenefit',
     'net_income': ['NetIncomeLoss', 'ProfitLoss', 'NetIncomeLossAvailableToCommonStockholdersBasic'],
-    'shares_outstanding': ['CommonStockSharesOutstanding', 'WeightedAverageNumberOfDilutedSharesOutstanding', 'WeightedAverageNumberOfSharesOutstandingDiluted', 'WeightedAverageNumberOfSharesOutstandingBasic', 'EntityCommonStockSharesOutstanding'],
-    'eps': ['EarningsPerShareDiluted', 'EarningsPerShareBasic', 'EarningsPerShareBasicAndDiluted'],
+    'shares_outstanding': ['CommonStockSharesOutstanding', 'WeightedAverageNumberOfDilutedSharesOutstanding', 'WeightedAverageNumberOfSharesOutstandingDiluted', 'WeightedAverageNumberOfSharesOutstandingBasic'],
+    'eps': ['EarningsPerShareDiluted', 'EarningsPerShareBasic'],
     'dividend_per_share': [
         'CommonStockDividendsPerShareDeclared',
-        lambda d: (d.get('PaymentsOfDividends', 0) / d.get('shares_outstanding')) if d.get('shares_outstanding') else None
+        lambda d: (d.get('PaymentsOfDividends', 0) / d.get('shares_outstanding')) if d.get('shares_outstanding') and d.get('PaymentsOfDividends') else None
     ],
     'PaymentsOfDividends': 'PaymentsOfDividendsCommonStock',
     'gross_margin': lambda d: (d.get('gross_profit', 0) / d.get('revenue')) if d.get('revenue') else None,
     'operating_margin': lambda d: (d.get('operating_income', 0) / d.get('revenue')) if d.get('revenue') else None,
     'profit_margin': lambda d: (d.get('net_income', 0) / d.get('revenue')) if d.get('revenue') else None,
-    'cash_and_equivalents': ['CashAndCashEquivalentsAtCarryingValue', 'Cash'],
+    'cash_and_equivalents': 'CashAndCashEquivalentsAtCarryingValue',
     'short_term_investments': ['MarketableSecuritiesCurrent', 'ShortTermInvestments'],
     'cash_and_short_term_investments': lambda d: d.get('cash_and_equivalents', 0) + d.get('short_term_investments', 0),
     'receivables': 'AccountsReceivableNetCurrent',
@@ -80,15 +71,11 @@ METRIC_MAP = {
     'total_assets': 'Assets',
     'accounts_payable': 'AccountsPayableCurrent',
     'accrued_expenses': 'AccruedLiabilitiesCurrent',
+    'current_portion_of_long_term_debt': 'LongTermDebtAndCapitalLeaseObligationsCurrent',
     'total_current_liabilities': ['LiabilitiesCurrent', 'Liabilities'],
-    'long_term_debt': ['LongTermDebtNoncurrent', 'LongTermDebt'],
-    'current_portion_of_long_term_debt': ['LongTermDebtAndCapitalLeaseObligationsCurrent', 'LongTermDebtCurrent'],
-    'short_term_borrowings': 'ShortTermBorrowings',
+    'long_term_debt': 'LongTermDebtNoncurrent',
     'total_liabilities': ['Liabilities', lambda d: d.get('total_current_liabilities', 0) + d.get('long_term_debt', 0)],
     'shareholders_equity': 'StockholdersEquity',
-    'retained_earnings': 'RetainedEarningsAccumulatedDeficit',
-    'treasury_stock': 'TreasuryStockValue',
-    'additional_paid_in_capital': 'AdditionalPaidInCapital',
     'total_liabilities_and_equity': lambda d: d.get('total_liabilities', 0) + d.get('shareholders_equity', 0),
     'depreciation_and_amortization': ['Depreciation', 'DepreciationDepletionAndAmortization', 'DepreciationAndAmortization', 'DepreciationDepletionAndAmortizationExpense'],
     'stock_based_compensation': 'ShareBasedCompensation',
@@ -103,11 +90,6 @@ METRIC_MAP = {
     'Dividend_Payout_Ratio': lambda d: (d.get('PaymentsOfDividends', 0) / d.get('net_income')) if d.get('net_income') else None,
     'EBITDA': lambda d: d.get('operating_income', 0) + d.get('depreciation_and_amortization', 0) if d.get('operating_income') is not None and d.get('depreciation_and_amortization') is not None else None,
     'ev': lambda d: (d.get('price', 0) * d.get('shares_outstanding', 0)) + d.get('total_liabilities', 0) - d.get('cash_and_short_term_investments', 0) if d.get('price') and d.get('shares_outstanding') and d.get('total_liabilities') is not None and d.get('cash_and_short_term_investments') is not None else None,
-    'public_float': 'EntityPublicFloat',
-    'entity_shares_outstanding': 'EntityCommonStockSharesOutstanding',
-    'filer_category': 'EntityFilerCategory',
-    'auditor_attestation_flag': 'IcfrAuditorAttestationFlag',
-    'shell_company_flag': 'EntityShellCompany',
 }
 
 def get_db_connection():
@@ -125,62 +107,34 @@ def get_db_connection():
         logging.error(f"Error connecting to MariaDB Platform: {e}")
         return None
 
-def request_with_retry(url, headers=None, max_retries=5, backoff_factor=2):
-    """Performs a GET request with exponential backoff on failure."""
-    for i in range(max_retries):
-        try:
-            response = requests.get(url, headers=headers, timeout=30)
-            response.raise_for_status()
-            return response
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
-                logging.warning(f"Data not found (404) for {url}. Skipping.")
-                raise e # Raise to be caught by the caller who handles the retry
-            
-            if i == max_retries - 1:
-                logging.error(f"Failed to fetch {url} after {max_retries} attempts.")
-                raise e
-            wait = backoff_factor ** i
-            logging.warning(f"HTTP error {e.response.status_code}: {e}. Retrying in {wait}s... ({i+1}/{max_retries})")
-            time.sleep(wait)
-        except (requests.exceptions.RequestException, Exception) as e:
-            if i == max_retries - 1:
-                logging.error(f"Failed to fetch {url} after {max_retries} attempts.")
-                raise e
-            wait = backoff_factor ** i
-            logging.warning(f"Network error: {e}. Retrying in {wait}s... ({i+1}/{max_retries})")
-            time.sleep(wait)
-
 def get_stock_price(ticker):
-    """Fetches the current stock price for a given ticker with retries."""
+    """Fetches the current stock price for a given ticker."""
     if not ticker:
         return None
-    for attempt in range(3):
-        try:
-            stock = yf.Ticker(ticker)
-            # Try to get fast info first
-            price = stock.info.get('regularMarketPrice') or stock.info.get('currentPrice')
-            if price:
-                logging.info(f"Fetched price for {ticker}: {price}")
-                return float(price)
-            
-            # Fallback to history
+    try:
+        stock = yf.Ticker(ticker)
+        price = stock.info.get('regularMarketPrice') or stock.info.get('currentPrice')
+        if price:
+            logging.info(f"Fetched price for {ticker}: {price}")
+            return price
+        else:
             hist = stock.history(period="2d")
             if not hist.empty:
-                val = float(hist['Close'].iloc[-1])
-                logging.info(f"Fetched price for {ticker} from history: {val}")
-                return val
-        except Exception as e:
-            logging.warning(f"Attempt {attempt+1} failed to fetch price for {ticker}: {e}")
-            time.sleep(2)
-    return None
+                return hist['Close'].iloc[-1]
+            else:
+                logging.warning(f"Could not fetch price for {ticker} from yfinance.")
+                return None
+    except Exception as e:
+        logging.error(f"Error fetching price for {ticker} from yfinance: {e}")
+        return None
 
 def download_company_tickers():
     """Downloads the main list of all company tickers and CIKs."""
     logging.info("Downloading company tickers list...")
     url = "https://www.sec.gov/files/company_tickers.json"
     try:
-        response = request_with_retry(url, headers=HEADERS)
+        response = requests.get(url, headers=HEADERS)
+        response.raise_for_status()
         with open('company_tickers.json', 'w') as f:
             json.dump(response.json(), f)
         logging.info("Successfully downloaded company_tickers.json")
@@ -193,7 +147,7 @@ def populate_companies_table(conn, tickers_file):
     """Populates the sec_companies table from the tickers file."""
     logging.info("Populating sec_companies table...")
     cursor = conn.cursor()
-    with open(tickers_file, 'r', encoding='utf-8', errors='replace') as f:
+    with open(tickers_file, 'r') as f:
         companies = json.load(f)
     
     company_list = [(c['cik_str'], c['ticker'], c['title']) for c in companies.values()]
@@ -211,41 +165,30 @@ def populate_companies_table(conn, tickers_file):
 
 def process_and_load_financials(conn, cik, ticker, file_path):
     """Reads a company's fact file, processes it, and loads into the database."""
-    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+    with open(file_path, 'r') as f:
         company_data = json.load(f)
 
     if 'us-gaap' not in company_data.get('facts', {}):
         return
 
-    logging.info(f"Fetching stock price for {ticker}...")
     current_price = get_stock_price(ticker)
-    logging.info(f"Processing metrics for {ticker}...")
 
     data_by_year = {}
-    supported_units = ['USD', 'USD/shares', 'shares']
-    for metric, details in company_data.get('facts', {}).get('us-gaap', {}).items():
-        for unit in supported_units:
-            if unit in details.get('units', {}):
-                for item in details['units'][unit]:
-                    if item.get('fp') == 'FY' and 'form' in item: # Focusing on 10-K/Annual data
-                         # Using the year from 'end' date is more robust than 'fy' as 'fy' often 
-                         # refers to the report year rather than the period year.
-                         year = int(item.get('end', '').split('-')[0]) if item.get('end') else item.get('fy')
-                         if not year:
-                             continue
-                         if year not in data_by_year:
-                             data_by_year[year] = {
-                                 'cik': str(cik).zfill(10), 
-                                 'fiscal_year': year, 
-                                 'filing_date': item.get('filed'),
-                                 'form': item.get('form'),
-                                 'details': {} # Store metric values here temporarily
-                             }
-                         # Store the value. If multiple forms exist for same year, usually latest value/most recent filing is preferred. 
-                         # For simplicity in this structure, we overwrite. 
-                         # A more robust approach would sort by filing date.
-                         # Storing in a dictionary to map metric -> value for this year
-                         data_by_year[year].setdefault('temp_metrics', {})[metric] = item['val']
+    for metric, details in company_data['facts']['us-gaap'].items():
+        try:
+            for item in details.get('units', {}).get('USD', []):
+                if item.get('fp') == 'FY' and 'form' in item:
+                    year = item['fy']
+                    if year not in data_by_year:
+                        data_by_year[year] = {
+                            'cik': str(cik).zfill(10), 
+                            'fiscal_year': year, 
+                            'filing_date': item.get('filed'),
+                            'form': item.get('form')
+                        }
+                    data_by_year[year][metric] = item['val']
+        except KeyError:
+            continue
 
     records_to_insert = []
     for year, year_data_raw in data_by_year.items():
@@ -258,14 +201,13 @@ def process_and_load_financials(conn, cik, ticker, file_path):
         }
         
         # First, get all direct values from the raw data
-        metrics_data = year_data_raw.get('temp_metrics', {})
         for name, gaap_tags in METRIC_MAP.items():
             if isinstance(gaap_tags, str):
-                record[name] = metrics_data.get(gaap_tags)
+                record[name] = year_data_raw.get(gaap_tags)
             elif isinstance(gaap_tags, list):
                 for tag in gaap_tags:
-                    if isinstance(tag, str) and tag in metrics_data:
-                        record[name] = metrics_data[tag]
+                    if isinstance(tag, str) and tag in year_data_raw:
+                        record[name] = year_data_raw[tag]
                         break
                 else:
                     if name not in record:
@@ -278,12 +220,6 @@ def process_and_load_financials(conn, cik, ticker, file_path):
                     record[name] = logic(record)
                 except (TypeError, ZeroDivisionError):
                     record[name] = None
-            elif isinstance(logic, list) and len(logic) > 0 and callable(logic[-1]):
-                if record.get(name) is None:
-                    try:
-                        record[name] = logic[-1](record)
-                    except (TypeError, ZeroDivisionError):
-                        record[name] = None
         
         critical_fields = ['revenue', 'net_income', 'operating_cash_flow', 'eps']
         for field in critical_fields:
@@ -299,50 +235,15 @@ def process_and_load_financials(conn, cik, ticker, file_path):
     
     columns = records_to_insert[0].keys()
     sql = f"REPLACE INTO sec_financial_reports ({', '.join(columns)}) VALUES ({', '.join(['?'] * len(columns))})"
-    logging.info(f"Starting database insertion for {ticker} (using {len(records_to_insert)} records)...")
     
-    def clean_val(v):
-        if v is None:
-            return None
-        # Convert scale-like objects or numpy types if any 
-        # (though we don't import numpy, libraries like yfinance might return them)
-        if hasattr(v, 'item'): # Handle numpy types
-            v = v.item()
-        if isinstance(v, (int, float)):
-            return v
-        if isinstance(v, bool):
-            return 1 if v else 0
-        return str(v)
-
-    values = [tuple(clean_val(rec.get(col)) for col in columns) for rec in records_to_insert]
+    values = [tuple(rec.get(col) for col in columns) for rec in records_to_insert]
 
     try:
         cursor.executemany(sql, values)
         conn.commit()
         logging.info(f"Successfully imported {cursor.rowcount} annual reports for {ticker}.")
     except mariadb.Error as e:
-        logging.error(f"Bulk insert failed for {ticker}: {e}. Falling back to individual inserts for debugging.")
-        # Fallback to individual inserts to find the exact row/column issue
-        conn.rollback()
-        success_count = 0
-        for i, row in enumerate(values):
-            try:
-                cursor.execute(sql, row)
-                conn.commit()
-                success_count += 1
-            except mariadb.Error as e2:
-                logging.error(f"Error at row {i} for {ticker}: {e2}")
-                # Log detailed row info
-                row_dict = dict(zip(columns, row))
-                logging.error(f"Row {i} Data: {row_dict}")
-                # Try to identify which column is the problem
-                for j, val in enumerate(row):
-                    try:
-                        temp_sql = f"REPLACE INTO sec_financial_reports ({list(columns)[j]}) VALUES (?)"
-                        cursor.execute(temp_sql, (val, ))
-                    except mariadb.Error:
-                        logging.error(f"Problematic Column found: Index {j} ({list(columns)[j]}), Value: {val}, Type: {type(val)}")
-        logging.info(f"Individual fallback completed for {ticker}. {success_count}/{len(values)} records succeeded.")
+        logging.error(f"Database error for {ticker}: {e}")
     finally:
         cursor.close()
 
@@ -354,7 +255,7 @@ def gzip_file(file_path):
     gz_path = file_path + '.gz'
     with open(file_path, 'rb') as f_in:
         with gzip.open(gz_path, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
+            f_out.writelines(f_in)
     
     os.remove(file_path)
 
@@ -362,7 +263,6 @@ def main():
     """Main function to orchestrate the entire ETL process."""
     parser = argparse.ArgumentParser(description='Import SEC data for one or all tickers.')
     parser.add_argument('--ticker', type=str, help='Specify a single ticker to process.')
-    parser.add_argument('--limit', type=int, help='Limit the number of companies to process.')
     args = parser.parse_args()
 
     if not os.path.exists(DATA_DIR):
@@ -380,7 +280,7 @@ def main():
             logging.error("Could not download company list. Exiting.")
             return
             
-        with open(tickers_file, 'r', encoding='utf-8', errors='replace') as f:
+        with open(tickers_file, 'r') as f:
             companies = json.load(f)
 
         if args.ticker:
@@ -391,62 +291,30 @@ def main():
         else:
             companies_to_process = companies
 
-        if args.limit:
-            companies_to_process = dict(list(companies_to_process.items())[:args.limit])
-
         logging.info(f"Starting to process {len(companies_to_process)} companies...")
         
         for i, company in enumerate(companies_to_process.values()):
-            # Garbage collect after every company to keep memory low
-            gc.collect()
-            if psutil:
-                mem = psutil.Process().memory_info().rss / (1024 * 1024)
-                if mem > 500: # Threshold for aggressive logging
-                    logging.warning(f"High memory usage: {mem:.2f} MB")
-                elif i % 50 == 0:
-                    logging.info(f"Current memory usage: {mem:.2f} MB")
-
-            # Periodic database connection refresh
-            if i > 0 and i % 100 == 0:
-                logging.info("Refreshing database connection...")
-                conn.close()
-                conn = get_db_connection()
-                if not conn:
-                    logging.error("Failed to reconnect to database. Exiting.")
-                    return
-
             cik_str = str(company['cik_str']).zfill(10)
             ticker = company['ticker']
             
-            # Skip logic: If the compressed file exists, we've already processed this company
-            file_path = os.path.join(DATA_DIR, f"CIK{cik_str}.json")
-            if os.path.exists(file_path + '.gz'):
-                if i % 100 == 0 or args.ticker:
-                    logging.info(f"({i+1}/{len(companies_to_process)}) Skipping {ticker} (already processed)")
-                continue
-
             logging.info(f"({i+1}/{len(companies_to_process)}) Processing {ticker} (CIK: {cik_str})")
+            
+            file_path = os.path.join(DATA_DIR, f"CIK{cik_str}.json")
             url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_str}.json"
             
             try:
-                logging.info(f"Downloading data for {ticker} from SEC...")
-                response = request_with_retry(url, headers=HEADERS)
-                logging.info(f"Saving {ticker} data to {file_path}...")
-                with open(file_path, 'w', encoding='utf-8', errors='replace') as f:
+                response = requests.get(url, headers=HEADERS)
+                response.raise_for_status()
+                with open(file_path, 'w') as f:
                     json.dump(response.json(), f)
                 
-                # Explicitly delete large response objects
-                del response
-                
-                logging.info(f"Processing and loading financials for {ticker}...")
                 process_and_load_financials(conn, cik_str, ticker, file_path)
                 
                 gzip_file(file_path)
 
-            except Exception as e:
-                logging.error(f"Unexpected error processing {ticker}: {e}")
+            except requests.exceptions.RequestException as e:
+                logging.error(f"Failed to download data for {ticker}: {e}")
             
-            # Small sleep to be kind to SEC servers
             time.sleep(0.1)
 
     finally:

@@ -1,0 +1,114 @@
+
+please read /home/kay/workspace/stock-batch/import_all_sec_data.py 
+please list out what's the api and tables used by this python program
+
+https://www.sec.gov/files/company_tickers.json
+
+https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_str}.json 
+
+
+i want to write new program without using import_all_sec_data.py  and table sec_companies nor sec_financial_reports
+Please help to write program specification for antigravity 
+- read the company tickers by https://www.sec.gov/files/company_tickers.json
+- according to company tickers to get sec data by https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_str}.json 
+- to pick  stocks according to the SEC data from API or other data source such as yfinance or finnhub for below types of stocks
+	 - Growth: with conditon: if free cash flow data is availabe for latest 5 years (from the available data), please add condition that lastest 5 years with at least 3 year positive free cash flow. free cash flow can get from free data source or by own calculation by available data. 
+	 - Dividend: with health financial status such as not high debit and reasonable payout ratio
+	 - Turnaround :
+	 - trend from loss to earn:
+- download the relevant specification if you need
+
+- with json file for below enviromnent variables
+Required Environment Variables
+Variable	Description	Default
+DB_HOST	Database Hostname	192.168.1.142
+DB_USER	Database Username	nextcloud
+DB_PASSWORD	Database Password	Ks120909090909#
+DB_NAME	Database Name	nextcloud
+FINNHUB_API_KEY	Your Finnhub API Key	None
+
+- output the picked stock in csv format for below types stock with data that make it meet the condition for picking
+ Growth: 
+ Dividend: 
+ Turnaround :
+ trend from loss to earn:
+
+- write reasonable log when meet error or exception the mark with ERROR, expected problem (such as 404 when visit https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_str}.json ) then mark WARNING. log named select_direct_by_api_<datetime to second>.log. mark if company proceed success
+- when https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_str}.json  meet 404 then skip
+- make logic to mark down if the company is proceed (for example, refer to the latest log). if there is any exception to exit the program, it can rerun not from beginning
+
+
+
+
+please read the program specification select_direct_by_api_speci_v1.md to see if there is anything needed to improve or missed
+please add below points:
+- if file is needed to download, please gzip it after proceed
+- under the folder /home/kay/workspace/stock-batch/select_direct_by_api
+- no need to add Scheduled job at this moment
+- can input specific ticker code such as NET to see if the specific meeting the picking condition
+
+
+please read /home/kay/workspace/stock-batch/select_direct_by_api/select_direct_by_api_speci_v2.md and write program under folder under folder /home/kay/workspace/stock-batch/select_direct_by_api
+- db and api information is:
+{
+    "DB_HOST": "192.168.1.142",
+    "DB_USER": "nextcloud",
+    "DB_PASSWORD": "Ks120909090909#",
+    "DB_NAME": "nextcloud",
+    "FINNHUB_API_KEY": "d6a6hnhr01qqjvbpa0t0d6a6hnhr01qqjvbpa0tg"
+}
+please write new program without using import_all_sec_data.py  and table sec_companies nor sec_financial_reports
+
+
+
+
+
+for type Growth, if free cash flow data is Not enough for latest 5 years, will it skip the checking on free cash flow
+
+
+for type Growth, please skip the condition on cashflow checking if free cash flow data is Not enough for latest 5 years.
+if the stock is picked for type Growth but skip the condition on cashflow checking, please make it down free cash flow not available in the csv record
+if free cash flow data is available for latest 5 years, please proceed condition that lastest 5 years with at least 3 year positive free cash flow
+
+
+
+change the log file name from execution.log to execution-<complete date time>.log
+
+
+please test the program by tickers  NET PEP GOOG WM
+
+
+
+Company,Ticker Symbol,Primary Exchange
+Cloudflare,NET,NYSE
+PepsiCo,PEP,NASDAQ
+Google (Alphabet Inc.),GOOGL (Class A) / GOOG (Class C),NASDAQ
+Waste Management,WM,NYSE
+
+please update select_direct_by_api_speci_v2.md by referring the updated program logic 
+
+please make a md file select_direct_by_api_guide.md about:
+- how to install/setup to run the program
+- used api and or db table with related program
+- how to use the output file
+- how to read the log file
+- how to run the program
+- explain the logic to select stocks for :
+ Growth: 
+ Dividend: 
+ Turnaround :
+ trend from loss to earn:
+
+
+all files should be under folder /home/kay/workspace/stock-batch/select_direct_by_api  
+for example, /home/kay/workspace/stock-batch/stock_selection_config.json should make a copy under /home/kay/workspace/stock-batch/select_direct_by_api  then program use the copy under folder /home/kay/workspace/stock-batch/select_direct_by_api
+
+/home/kay/workspace/stock-batch/select_direct_by_api/src/config.py still state 
+CONFIG_FILE_PATH = Path("/home/kay/workspace/stock-batch/stock_selection_config.json")
+
+it should use file under folder /home/kay/workspace/stock-batch/select_direct_by_api i.e. /home/kay/workspace/stock-batch/select_direct_by_api/stock_selection_config.json
+
+
+please update select_direct_by_api_guide.md by referring the updated program logic 
+
+what should i install and how to install for the program?

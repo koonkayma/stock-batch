@@ -1,0 +1,17 @@
+please read /home/kay/workspace/stock-batch/import_all_sec_data.py 
+please list out what's the api and tables used by this python program
+
+https://www.sec.gov/files/company_tickers.json
+
+https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_str}.json 
+
+sec_companies
+
+sec_financial_reports
+
+
+you can find the tables layout form tables.sql
+the program trying to read data from API then import to the table sec_financial_reports.
+could you find the mapping between the API and the table columns in sec_financial_reports in table format in a md file called import_all_sec_data_mapping.md? 
+
+/home/kay/workspace/stock-batch/import_all_sec_data.py

@@ -1,0 +1,216 @@
+please read /home/kay/workspace/stock-batch/import_all_sec_data.py 
+please list out what's the api and tables used by this python program
+
+https://www.sec.gov/files/company_tickers.json
+
+https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_str}.json 
+
+sec_companies
+
+sec_financial_reports
+
+
+you can find the tables layout form tables.sql
+the program trying to read data from API then import to the table sec_financial_reports.
+could you find the mapping between the API and the table columns in sec_financial_reports in table format in a md file called import_all_sec_data_mapping.md?
+
+
+/home/kay/workspace/stock-batch/import_all_sec_data.py
+
+notebooklm:
+i'm trying to use antigravity to write program (import_all_sec_data.txt) to import from api https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_str}.json to the table sec_financial_reports in tables.txt. the mapping is in import_all_sec_data_mapping.md
+
+in the mapping import_all_sec_data_mapping.md, it can find like that betwee SEC api to the db table
+| Database Column | SEC XBRL Tag(s) / API Field | Logic / Notes |
+| :--- | :--- | :--- |
+| **cik** | `cik_str` | Padded to 10 digits. |
+| **fiscal_year** | `fy` | Extracted from year-end (FY) items. |
+| **filing_date** | `filed` | |
+| **form** | `form` | e.g., 10-K. |
+| **revenue** | `RevenueFromContractWithCustomerExcludingAssessedTax`, `Revenues` | First matching tag used. |
+| **cost_of_revenue** | `CostOfGoodsAndServicesSold`, `CostOfRevenue` | |
+| **gross_profit** | Calculated | `revenue` - `cost_of_revenue` |
+| **research_and_development** | `ResearchAndDevelopmentExpense` | |
+| **selling_general_and_admin**| `SellingGeneralAndAdministrativeExpense` | |
+| **operating_expenses** | `OperatingExpenses` | |
+| **operating_income** | `OperatingIncomeLoss`, `IncomeFromOperations` | |
+| **interest_expense** | `InterestExpense` | |
+| **interest_and_investment_income**| `InvestmentIncomeInterest` | |
+| **pretax_income** | `IncomeLossFromContinuingOperationsBeforeIncomeTaxExtraordinaryItemsNoncontrollingInterest`, `IncomeLossBeforeIncomeTaxes` | |
+
+is tere anything SEC XBRL Tag missed for the relevant  Database Column?
+
+is there any SEC XBRL Tag available in the api but missing in the Database Column for table sec_financial_reports?
+
+i mean if there is any data available from SEC XBRL Tag (referring to the specification) but no such column in the Database table  sec_financial_reports?
+
+please suggest what's the table column is needed to add with the mapping with SEC XBRL Tag in table format
+
+
+---------------------------------------------------------------
+
+the md file import_all_sec_data_missing_spec_NT_LM.md stated SEC tags missed to map with database table sec_financial_reports.
+could backup import_all_sec_data.py then revise import_all_sec_data.py for such missing tags?
+
+
+in import_all_sec_data_missing_DB_COLUMN.md, there are some columns not in table sec_financial_reports but available to get from SEC API Tags (https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_str}.json ).
+please provide sql to me to add such column and modify import_all_sec_data.py  to import such column from relevant tab
+
+
+please get first 50 tickers from this api 
+https://www.sec.gov/files/company_tickers.json
+
+then run import_all_sec_data.py for first 50 tickers from https://www.sec.gov/files/company_tickers.json to see if it works
+
+then test if data is correct by using db_executor.py
+
+please update /home/kay/workspace/stock-batch/import_all_sec_data-guideline.md about how to setup, install and how to run the script import_all_sec_data.py
+
+
+please update /home/kay/workspace/stock-batch/import_all_sec_data_mapping.md according to update table columns and import_all_sec_data.py
+
+
+import_all_sec_data_mapping.md is data mapping between database table sec_financial_reports in tables and SEC API https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_str}.json 
+i want to write a specification for a python program to select below kinds of stock by data in the table or some else available data source such as finnhub
+- growth stock
+- dividend stock with health financial status such as not high debit and reasonable payout radio
+- turn around in terms of earning
+
+could help to provide a programing specification for antigravity write this program to output different kinds of stock to different csv file and the program should write out reasonable logs?
+
+could help to read Stock-Selection-Program-Specification.md then write the python program according to this specification?
+
+could help to write a stock_selection_engine_guide.md to explain and state how to run / setup / install for stock_selection_engine.py?
+
+
+could help to put below setting in a config file in json format then let stock_selection_engine.py to run?
+
+Required Environment Variables
+Variable	Description	Default
+DB_HOST	Database Hostname	192.168.1.142
+DB_USER	Database Username	nextcloud
+DB_PASSWORD	Database Password	Ks120909090909#
+DB_NAME	Database Name	nextcloud
+FINNHUB_API_KEY	Your Finnhub API Key	None
+
+
+please run python3 -m stock_selection_engine.main --limit 50 to test
+
+
+what's the companies are tested? are they really no eps from SEC api?
+
+
+how about to import the tested company's data again 
+python3 import_all_sec_data.py
+
+then run below script for those tested company to see if data matchs?
+python3 -m stock_selection_engine.main
+
+
+i will run python3 import_all_sec_data.py to import all data to let python3 -m stock_selection_engine.main to select stock. 
+please let me know which column should have value for stock_selection_engine.main. i will check if those column after python3 import_all_sec_data.py  complete to import all data
+
+please update Critical Columns Checklist and python3 check_data_quality.py to Stock-Selection-Program-Specification.md 
+
+
+
+ python3 check_data_quality.py t
+
+
+ please add the logic for selecting stock by stock_selection_engine.main to Stock-Selection-Program-Specification.md
+
+
+please explain below logic and add to Stock-Selection-Program-Specification.md
+ Growth Strategy 
+ Dividend Strategy 
+ Turnaround Strategy 
+
+
+Valuation: PEG Ratio < 2.0.
+for  Growth Strategy in stock_selection_engine.main, please remove this filter Valuation: PEG Ratio < 2.0.
+
+i want to run import_all_sec_data.py  on mopemediavalut server. what should i copy and install of the OMV? how to run it on omv?
+
+please write import_all_sec_data_guide_on_omv.md to explain what to install / setup and run import_all_sec_data.py on OMV
+
+please read Stock-Selection-Program-Specification_add1rule.md which had logic about to generate output_loss_to_profit_stocks.csv that's for picking logic for the stock from loss to earn
+please extract such content for picking logic for the stock from loss to earn (i.e. related to  generate output_loss_to_profit_stocks.csv) and merge to Stock-Selection-Program-Specification.md
+then implement the  picking logic for the stock from loss to earn (i.e. related to  generate output_loss_to_profit_stocks.csv) to stock_selection_engine.main also
+
+
+please explain below logic on stock_selection_engine.main and add to Stock-Selection-Program-Specification.md
+Loss-to-Profit strategy
+
+
+when i run  import_all_sec_data.py on omv, it meets below problem
+
+
+2026-02-18 21:17:58,050 - WARNING - Could not find any matching tag for 'operating_cash_flow' for WTS in FY2011.
+2026-02-18 21:17:58,051 - WARNING - Could not find any matching tag for 'operating_cash_flow' for WTS in FY2012.
+2026-02-18 21:17:58,051 - WARNING - Could not find any matching tag for 'operating_cash_flow' for WTS in FY2013.
+2026-02-18 21:17:58,051 - WARNING - Could not find any matching tag for 'operating_cash_flow' for WTS in FY2014.
+2026-02-18 21:17:58,052 - WARNING - Could not find any matching tag for 'operating_cash_flow' for WTS in FY2015.
+2026-02-18 21:17:58,052 - WARNING - Could not find any matching tag for 'operating_cash_flow' for WTS in FY2016.
+2026-02-18 21:17:58,071 - INFO - Successfully imported 30 annual reports for WTS.
+2026-02-18 21:17:58,567 - INFO - (925/10397) Processing JEF (CIK: 0000096223)
+2026-02-18 21:18:02,229 - INFO - Fetched price for JEF: 51.98
+2026-02-18 21:18:02,268 - WARNING - Could not find any matching tag for 'operating_cash_flow' for JEF in FY2024.
+2026-02-18 21:18:02,269 - WARNING - Could not find any matching tag for 'operating_cash_flow' for JEF in FY2025.
+2026-02-18 21:18:02,287 - INFO - Successfully imported 34 annual reports for JEF.
+2026-02-18 21:18:03,145 - INFO - (926/10397) Processing ASR (CIK: 0001123452)
+2026-02-18 21:18:04,002 - INFO - Fetched price for ASR: 378.66
+2026-02-18 21:18:04,150 - INFO - (927/10397) Processing SITM (CIK: 0001451809)
+2026-02-18 21:18:05,495 - INFO - Fetched price for SITM: 414.05
+2026-02-18 21:18:05,509 - WARNING - Could not find any matching tag for 'eps' for SITM in FY2019.
+2026-02-18 21:18:05,510 - WARNING - Could not find any matching tag for 'eps' for SITM in FY2020.
+2026-02-18 21:18:05,534 - INFO - Successfully imported 14 annual reports for SITM.
+2026-02-18 21:18:05,775 - INFO - (928/10397) Processing NTNX (CIK: 0001618732)
+2026-02-18 21:18:07,219 - INFO - Database connection closed.
+Traceback (most recent call last):
+  File "/root/home/workspace/stock-batch/import_all_sec_data.py", line 354, in <module>
+    main()
+  File "/root/home/workspace/stock-batch/import_all_sec_data.py", line 339, in main
+    process_and_load_financials(conn, cik_str, ticker, file_path)
+  File "/root/home/workspace/stock-batch/import_all_sec_data.py", line 181, in process_and_load_financials
+    company_data = json.load(f)
+                   ^^^^^^^^^^^^
+  File "/usr/lib/python3.11/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+                 ^^^^^^^^^
+  File "<frozen codecs>", line 322, in decode
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xad in position 611957: invalid start byte
+
+
+when i run  import_all_sec_data.py on omv, it meets below problem
+2026-02-19 00:35:34,283 - INFO - Downloading data for SNDR from SEC...
+2026-02-19 00:36:12,032 - ERROR - Failed to download data for SNDR: HTTPSConnectionPool(host='data.sec.gov', port=443): Max retries exceeded with url: /api/xbrl/companyfacts/CIK0001692063.json (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7972e4fe6480>: Failed to resolve 'data.sec.gov' ([Errno -2] Name or service not known)"))
+2026-02-19 00:36:16,402 - INFO - (1434/10397) Processing SM (CIK: 0000893538)
+2026-02-19 00:36:24,019 - INFO - Downloading data for SM from SEC...
+2026-02-19 00:39:31,641 - ERROR - Failed to download data for SM: HTTPSConnectionPool(host='data.sec.gov', port=443): Max retries exceeded with url: /api/xbrl/companyfacts/CIK0000893538.json (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7972b3148980>: Failed to resolve 'data.sec.gov' ([Errno -2] Name or service not known)"))
+2026-02-19 00:39:36,069 - INFO - (1435/10397) Processing LAUR (CIK: 0000912766)
+2026-02-19 00:39:39,203 - INFO - Downloading data for LAUR from SEC...
+2026-02-19 00:42:06,873 - INFO - Saving LAUR data to sec_data/CIK0000912766.json...
+2026-02-19 00:42:42,552 - INFO - Processing and loading financials for LAUR...
+2026-02-19 00:43:00,536 - INFO - Fetching stock price for LAUR...
+2026-02-19 00:46:14,172 - ERROR - Error fetching price for LAUR from yfinance: Failed to perform, curl: (6) Could not resolve host: query2.finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+Killed
+
+
+
+please try 10 tickers to see if any ticker insert successful
+
+
+ https://data.sec.gov/api/xbrl/companyfacts/CIK0001469059.json
+
+ https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json
+ 320193
+
+https://data.sec.gov/api/xbrl/companyfacts/CIK0001584273.json
+
+ 2026-02-19 06:51:36,977 - WARNING - Network error: 404 Client Error: Not Found for url: https://data.sec.gov/api/xbrl/companyfacts/CIK0001584273.json. Retrying in 2s... (2/5)
+
+it shows many 404 error. is it data problem or program problem or really no such data?
+2026-02-19 06:51:39,438 - WARNING - Network error: 404 Client Error: Not Found for url: https://data.sec.gov/api/xbrl/companyfacts/CIK0001584273.json. Retrying in 4s... (3/5)
+2026-02-19 06:52:49,378 - WARNING - Network error: 404 Client Error: Not Found for url: https://data.sec.gov/api/xbrl/companyfacts/CIK0002044863.json. Retrying in 2s... (2/5)
+2026-02-19 06:53:07,266 - WARNING - Network error: 404 Client Error: Not Found for url: https://data.sec.gov/api/xbrl/companyfacts/CIK0002084022.json. Retrying in 1s... (1/5)
+2026-02-19 06:53:08,836 - WARNING - Network error: 404 Client Error: Not Found for url: https://data.sec.gov/api/xbrl/companyfacts/CIK0002084022.json. Retrying in 2s... (2/5)

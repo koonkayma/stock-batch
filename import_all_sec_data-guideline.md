@@ -6,6 +6,7 @@ This document provides instructions on how to run the `import_all_sec_data.py` s
 
 *   Python 3
 *   A running MariaDB or MySQL database instance with the `sec_companies` and `sec_financial_reports` tables created (see `tables.sql`).
+*   System packages for MariaDB connector (e.g., `libmariadb3`, `libmariadb-dev` on Debian/Ubuntu) if building from source.
 
 ## 1. Create a Virtual Environment
 
@@ -26,8 +27,10 @@ Activate the virtual environment and install the required Python packages using 
 source .venv/bin/activate
 
 # Install the dependencies
-pip install mariadb requests
+pip install mariadb requests yfinance
 ```
+
+> **Note:** on some systems, you might encounter an `externally-managed-environment` error. If you are unable to use a virtual environment, you can use `pip install --break-system-packages mariadb requests yfinance`, but be aware this modifies your system Python environment.
 
 ## 3. Configure the Database Connection
 
@@ -66,6 +69,23 @@ To process a specific ticker (e.g., AAPL):
 ```bash
 .venv/bin/python import_all_sec_data.py --ticker AAPL
 ```
+
+To process a limited number of companies (e.g., first 50):
+```bash
+.venv/bin/python import_all_sec_data.py --limit 50
+```
+
+## 6. Verify Data Quality
+
+After the script completes (or even during a limit run), you should verify that critical metrics like **EPS** and **Revenue** are being correctly populated.
+
+Run the data quality check script:
+```bash
+python3 check_data_quality.py
+```
+
+This script will report the percentage of populated data for recent fiscal years. If coverage for critical columns is low, double-check your database schema and the `METRIC_MAP` in `import_all_sec_data.py`.
+
 ### What the Script Does:
 
 *   **Downloads Company List:** It first downloads `company_tickers.json` from the SEC, which contains a list of all public companies.

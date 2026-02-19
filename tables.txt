@@ -8,8 +8,6 @@ CREATE TABLE `sec_companies` (
 
 -- nextcloud.sec_financial_reports definition
 
--- nextcloud.sec_financial_reports definition
-
 CREATE TABLE `sec_financial_reports` (
   `cik` varchar(10) NOT NULL,
   `fiscal_year` int(11) NOT NULL,
@@ -69,15 +67,7 @@ CREATE TABLE `sec_financial_reports` (
   `EBITDA` decimal(19,4) DEFAULT NULL,
   `price` decimal(19,4) DEFAULT NULL,
   `ev` decimal(19,4) DEFAULT NULL,
-  `public_float` decimal(19,4) DEFAULT NULL,
-  `short_term_borrowings` decimal(19,4) DEFAULT NULL,
-  `retained_earnings` decimal(19,4) DEFAULT NULL,
-  `treasury_stock` decimal(19,4) DEFAULT NULL,
-  `additional_paid_in_capital` decimal(19,4) DEFAULT NULL,
-  `entity_shares_outstanding` bigint(20) DEFAULT NULL,
-  `filer_category` varchar(100) DEFAULT NULL,
-  `auditor_attestation_flag` tinyint(1) DEFAULT NULL,
-  `shell_company_flag` tinyint(1) DEFAULT NULL,
   PRIMARY KEY (`cik`,`fiscal_year`),
   KEY `cik` (`cik`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+

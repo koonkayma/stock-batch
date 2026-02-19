@@ -1,0 +1,7 @@
+{
+    "DB_HOST": "192.168.1.142",
+    "DB_USER": "nextcloud",
+    "DB_PASSWORD": "Ks120909090909#",
+    "DB_NAME": "nextcloud",
+    "FINNHUB_API_KEY": "d6a6hnhr01qqjvbpa0t0d6a6hnhr01qqjvbpa0tg"
+}
