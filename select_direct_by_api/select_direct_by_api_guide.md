@@ -58,7 +58,7 @@ python3 -m src.main --batch
 ```
 
 > [!NOTE]
-> Batch mode respects strict SEC (10 req/s) and Finnhub (30 req/s) rate limits and may take several hours to complete.
+> **Batch Resume Feature**: If the batch process is interrupted (e.g., connection loss or manual stop), simply run `python3 -m src.main --batch` again. The program detects the `checkpoint.json` file, reads the existing CSV, and automatically skips tickers that have already been processed.
 
 ---
 

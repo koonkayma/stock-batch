@@ -1,0 +1,22 @@
+# Data and Logs
+data/
+logs/
+output_*.csv
+checkpoint.json
+*.txt
+select_direct_by_api_Chat.txt
+
+# Credentials (IMPORTANT: Do not push API keys)
+stock_selection_config.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.env
+
+# OS
+.DS_Store

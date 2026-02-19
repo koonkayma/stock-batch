@@ -156,17 +156,61 @@ def run():
         logger.info("Running Batch Mode")
         tickers = universe.get_sec_tickers()
         
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_path = config.ROOT_DIR / f"output_{ts}.csv"
+        # --- Resume Logic ---
+        checkpoint_file = config.ROOT_DIR / "checkpoint.json"
+        processed_tickers = set()
+        csv_path = None
         
-        with open(csv_path, 'w', newline='') as f:
+        # 1. Check for existing checkpoint
+        if checkpoint_file.exists():
+            try:
+                with open(checkpoint_file, 'r') as f:
+                    checkpoint_data = json.load(f)
+                    csv_path = Path(checkpoint_data.get("csv_path", ""))
+                    
+                if csv_path and csv_path.exists():
+                    logger.info(f"Resuming from checkpoint: {csv_path}")
+                    # Read existing tickers to skip
+                    with open(csv_path, 'r') as f:
+                        reader = csv.reader(f)
+                        header = next(reader, None)
+                        for row in reader:
+                            if row:
+                                processed_tickers.add(row[0]) # Ticker is first column
+                    logger.info(f"Skipping {len(processed_tickers)} already processed tickers.")
+                else:
+                    logger.warning("Checkpoint found but CSV missing/invalid. Starting fresh.")
+                    csv_path = None
+            except Exception as e:
+                logger.error(f"Error reading checkpoint: {e}. Starting fresh.")
+                csv_path = None
+
+        # 2. Setup new run if no valid resume
+        if not csv_path:
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            csv_path = config.ROOT_DIR / f"output_{ts}.csv"
+            # Create checkpoint
+            with open(checkpoint_file, 'w') as f:
+                json.dump({"csv_path": str(csv_path)}, f)
+                
+            # Init CSV with header
+            with open(csv_path, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    "Ticker", "Growth_Pass", "Growth_Signal", 
+                    "Dividend_Pass", "Turnaround_Pass", "LossToEarn_Pass"
+                ])
+
+        # 3. Processing Loop
+        # Append mode 'a' for resume, but we open/close per batch logic or keep open?
+        # To be safe and simple: open in append mode for the whole loop
+        with open(csv_path, 'a', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow([
-                "Ticker", "Growth_Pass", "Growth_Signal", 
-                "Dividend_Pass", "Turnaround_Pass", "LossToEarn_Pass"
-            ])
             
             for ticker, cik in tickers:
+                if ticker in processed_tickers:
+                    continue
+                    
                 try:
                     logger.info(f"Processing {ticker}...")
                     report = process_ticker(ticker, cik, clients)
@@ -178,15 +222,22 @@ def run():
                         report.turnaround_result.passed,
                         report.loss_to_earn_result.passed
                     ])
-                    f.flush()
+                    f.flush() # Ensure data is written immediately
+                    
                 except KeyboardInterrupt:
-                    print("Batch interrupted.")
+                    print("\nBatch interrupted. Checkpoint saved.")
+                    # We do NOT delete checkpoint here
                     break
                 except Exception as e:
                     logger.error(f"Error {ticker}: {e}")
                     continue
-                    
-        logger.info(f"Batch completed: {csv_path}")
+        
+            # 4. Cleanup checkpoint if finished naturally (not interrupted)
+            else:
+                # This else block executes if the loop completes normally (no break)
+                if checkpoint_file.exists():
+                    checkpoint_file.unlink()
+                logger.info(f"Batch completed successfully: {csv_path}")
 
 if __name__ == "__main__":
     run()
