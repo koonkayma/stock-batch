@@ -204,6 +204,43 @@ def run():
         # 3. Processing Loop
         # Append mode 'a' for resume, but we open/close per batch logic or keep open?
         # To be safe and simple: open in append mode for the whole loop
+        # MD File Paths (using same timestamp logic)
+        # If resuming, we need to know the timestamp or use a fixed name?
+        # The prompt implies multiple output files.
+        # Checkpoint stores `csv_path`. We can derive TS from it or store it.
+        # But wait, if resuming, `csv_path` is loaded.
+        
+        md_growth_path = csv_path.with_name(csv_path.stem + "_growth.md")
+        md_dividend_path = csv_path.with_name(csv_path.stem + "_dividend.md")
+        md_turnaround_path = csv_path.with_name(csv_path.stem + "_turnaround.md")
+        md_loss2earn_path = csv_path.with_name(csv_path.stem + "_loss_to_earn.md")
+
+        # Helpers for MD writing
+        def ensure_md_header(path, columns):
+            if not path.exists():
+                with open(path, "w") as f:
+                    f.write("| " + " | ".join(columns) + " |\n")
+                    f.write("|" + "|".join(["---"] * len(columns)) + "|\n")
+
+        def append_md_row(path, row):
+            with open(path, "a") as f:
+                clean_row = []
+                for x in row:
+                    if x is None: clean_row.append("N/A")
+                    elif isinstance(x, float): clean_row.append(f"{x:.4f}")
+                    elif isinstance(x, bool): clean_row.append("Yes" if x else "No")
+                    else: clean_row.append(str(x).replace("|", ",")) # escape pipes
+                f.write("| " + " | ".join(clean_row) + " |\n")
+
+        # Init Headers
+        ensure_md_header(md_growth_path, ["Ticker", "Signal", "Years Analyzed", "Positive Years", "Skipped FCF Check?"])
+        ensure_md_header(md_dividend_path, ["Ticker", "Signal", "Yield", "Payout Ratio", "Solvency Passed?", "FCF Coverage"])
+        ensure_md_header(md_turnaround_path, ["Ticker", "Signal", "Margin Improving?", "Interest Coverage"])
+        ensure_md_header(md_loss2earn_path, ["Ticker", "Signal", "Distressed Qtrs", "Current NI", "Acceleration"])
+
+        # 3. Processing Loop
+        # Append mode 'a' for resume, but we open/close per batch logic or keep open?
+        # To be safe and simple: open in append mode for the whole loop
         with open(csv_path, 'a', newline='') as f:
             writer = csv.writer(f)
             
@@ -224,6 +261,59 @@ def run():
                     ])
                     f.flush() # Ensure data is written immediately
                     
+                    # --- MD Writing Logic ---
+                    # Growth
+                    if report.growth_result and report.growth_result.passed:
+                        d = report.growth_result.details
+                        row = [
+                            ticker, 
+                            report.growth_result.signal,
+                            d.get("years_analysed", 0),
+                            d.get("positive_years", 0),
+                            d.get("is_skipped", False)
+                        ]
+                        append_md_row(md_growth_path, row)
+
+                    # Dividend
+                    if report.dividend_result and report.dividend_result.passed:
+                        d = report.dividend_result.details
+                        cov = d.get("interest_coverage", "N/A")
+                        if isinstance(cov, dict): cov = f"Curr: {cov.get('current',0):.2f}"
+                        row = [
+                            ticker,
+                            report.dividend_result.signal,
+                            d.get("yield", 0),
+                            d.get("safety", {}).get("payout_ratio", "N/A"),
+                            d.get("solvency", {}).get("passed", False),
+                            d.get("fcf_coverage_check", "-")
+                        ]
+                        append_md_row(md_dividend_path, row)
+
+                    # Turnaround
+                    if report.turnaround_result and report.turnaround_result.passed:
+                        d = report.turnaround_result.details
+                        cov = d.get("interest_coverage", "N/A")
+                        if isinstance(cov, dict): cov = f"Curr: {cov.get('current',0):.2f}"
+                        row = [
+                            ticker,
+                            report.turnaround_result.signal,
+                            d.get("margin_improving", False),
+                            cov
+                        ]
+                        append_md_row(md_turnaround_path, row)
+
+                    # Loss2Earn
+                    if report.loss_to_earn_result and report.loss_to_earn_result.passed:
+                        d = report.loss_to_earn_result.details
+                        row = [
+                            ticker,
+                            report.loss_to_earn_result.signal,
+                            d.get("distressed_quarters", 0),
+                            d.get("current_ni", 0),
+                            d.get("acceleration", 0)
+                        ]
+                        append_md_row(md_loss2earn_path, row)
+                    
                 except KeyboardInterrupt:
                     print("\nBatch interrupted. Checkpoint saved.")
                     # We do NOT delete checkpoint here
@@ -238,6 +328,7 @@ def run():
                 if checkpoint_file.exists():
                     checkpoint_file.unlink()
                 logger.info(f"Batch completed successfully: {csv_path}")
+                logger.info(f"Markdown files generated: {md_growth_path.name}, {md_dividend_path.name}, etc.")
 
 if __name__ == "__main__":
     run()

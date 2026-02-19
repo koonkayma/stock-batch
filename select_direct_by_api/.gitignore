@@ -2,6 +2,7 @@
 data/
 logs/
 output_*.csv
+output_*.md
 checkpoint.json
 *.txt
 #select_direct_by_api_Chat.txt

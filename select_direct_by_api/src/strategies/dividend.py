@@ -103,6 +103,8 @@ def evaluate(stock_data: StockData) -> StrategyResult:
             "payout_ratio": payout_ratio,
             "passed": safety_passed
         }
+    
+    details["yield"] = stock_data.dividend_yield
 
     passed = solvency_passed and safety_passed
     signal = "Strong Buy / Healthy" if passed else f"Failed: {', '.join(reasons_failed)}"
