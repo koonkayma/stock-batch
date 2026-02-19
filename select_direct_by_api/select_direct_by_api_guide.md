@@ -143,6 +143,25 @@ This project uses Git for tracking changes and GitHub for remote collaboration.
    git push origin main
    ```
 
+### Branching and Collaboration
+To work on a new feature or logic update without affecting the main code:
+1. **Create and Switch to a New Branch**:
+   ```bash
+   git checkout -b feature-branch-name
+   ```
+2. **List All Local Branches**:
+   ```bash
+   git branch
+   ```
+3. **Switch to an Existing Branch**:
+   ```bash
+   git checkout branch-name
+   ```
+4. **Push a Branch to GitHub**:
+   ```bash
+   git push origin branch-name
+   ```
+
 ### Safety & Best Practices
 - **Security Check**: Never commit files containing secrets (API keys, Personal Access Tokens). The project is configured with a `.gitignore` file to automatically exclude:
   - `stock_selection_config.json` (Your API keys)
