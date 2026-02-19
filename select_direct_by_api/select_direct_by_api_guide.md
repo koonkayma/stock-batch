@@ -171,3 +171,29 @@ To work on a new feature or logic update without affecting the main code:
   1. Undo your commit: `git reset --soft HEAD~1`.
   2. Remove the sensitive file from your history: `git rm --cached <filename>`.
   3. Ensure the file is in `.gitignore`, then re-commit and push.
+
+---
+
+## 7. Troubleshooting & Fresh Starts
+
+### How to Start from the Beginning
+If you want to clear all progress and start a completely fresh batch scan:
+1. **Remove the Checkpoint**: Delete `checkpoint.json` in the project root. This forces the program to generate a new output file instead of resuming.
+   ```bash
+   rm checkpoint.json
+   ```
+2. **Clean Outputs (Optional)**: If you want to clear previous results:
+   ```bash
+   rm output_*
+   ```
+3. **Clear Logs (Optional)**:
+   ```bash
+   rm logs/*.log
+   ```
+4. **Re-run the Program**:
+   ```bash
+   python3 -m src.main --batch
+   ```
+
+> [!TIP]
+> **Keep Your Data Archive**: You do **not** need to delete `data/archive/` to start a fresh run. Keeping these `.gz` files allows the program to reuse previously fetched SEC data, making the new run significantly faster.
