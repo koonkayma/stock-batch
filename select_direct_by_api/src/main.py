@@ -59,8 +59,8 @@ def process_ticker(ticker: str, cik: str, clients) -> AnalysisReport:
         except Exception as e:
             logger.error(f"Compression error for {ticker}: {e}")
 
-        # Parse Annuals
-        stock.annuals = sec_client.parse_financials(facts)
+        # Parse Financials
+        stock.annuals, stock.quarterly_net_income = sec_client.parse_financials(facts)
         stock.sort_annuals()
         
     # 2. Fetch Market Data (Finnhub)
@@ -244,7 +244,7 @@ def run():
         ensure_md_header(md_growth_path, ["Ticker", "Signal", "Years Analyzed", "Positive Years", "Skipped FCF Check?", "5-Yr CAGR", "Rule of 40", "FCF Margin"])
         ensure_md_header(md_dividend_path, ["Ticker", "Signal", "Yield", "Payout Ratio", "Solvency Passed?", "FCF Coverage"])
         ensure_md_header(md_turnaround_path, ["Ticker", "Signal", "Margin Improving?", "Interest Coverage"])
-        ensure_md_header(md_loss2earn_path, ["Ticker", "Signal", "Distressed Qtrs", "Current NI", "Acceleration"])
+        ensure_md_header(md_loss2earn_path, ["Ticker", "Signal", "Distressed Qtrs", "Current NI (Q0)", "Prev NI (Q1)", "Acceleration"])
 
         # 3. Processing Loop
         with open(csv_path, 'a', newline='') as f:
@@ -333,14 +333,16 @@ def run():
                         append_md_row(md_turnaround_path, row)
 
                     # Loss2Earn
+                    # Loss2Earn
                     if report.loss_to_earn_result and report.loss_to_earn_result.passed:
                         d = report.loss_to_earn_result.details
                         row = [
                             ticker,
                             report.loss_to_earn_result.signal,
                             d.get("distressed_quarters", 0),
-                            d.get("current_ni", 0),
-                            d.get("acceleration", 0)
+                            f"{d.get('q0_ni', 0):,.0f}",
+                            f"{d.get('q1_ni', 0):,.0f}",
+                            f"{d.get('acceleration', 0):,.0f}"
                         ]
                         append_md_row(md_loss2earn_path, row)
                     

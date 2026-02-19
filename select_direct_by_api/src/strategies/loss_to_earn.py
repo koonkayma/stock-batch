@@ -40,42 +40,42 @@ def evaluate(stock_data: StockData) -> StrategyResult:
     if not distressed:
         return StrategyResult("LossToEarn", False, f"Not Distressed Enough ({negative_count}/6 negative)", {})
 
-    # 2. Pivot Point Check
-    # Most recent quarter MUST be positive
-    current_q = last_3[-1] # or sorted_quarters[-1]
-    current_ni = net_income_data[current_q]
+    # 2. Current Distress Check (Narrowing Losses Logic)
+    # Most recent quarter MUST be NEGATIVE (still losing money, but less)
+    # The original "Pivot" logic required positive. This NEW logic requires negative.
     
-    pivot = current_ni > 0
-    if not pivot:
-        return StrategyResult("LossToEarn", False, f"No Pivot (Current NI {current_ni} <= 0)", {})
+    q0_key = last_3[-1] # Current Quarter (t)
+    q1_key = last_3[-2] # Previous Quarter (t-1)
+    q2_key = last_3[-3] # Two Quarters Ago (t-2)
+    
+    q0 = net_income_data[q0_key]
+    q1 = net_income_data[q1_key]
+    q2 = net_income_data[q2_key]
+    
+    # Requirement: Current quarter must be negative (true distress)
+    if q0 >= 0:
+        return StrategyResult("LossToEarn", False, f"Already Profitable (Current NI {q0} >= 0)", {})
 
-    # 3. Clean Profit Check
-    # Using Annual OCF as proxy if quarterly OCF not available? 
-    # Or fetch quarterly OCF. 
-    # Let's assume we can get it. For now, checking logic.
-    # If no quarterly OCF in stock_data, warn.
-    # Assuming standard API might not give quarterly cash flow easily without premium.
-    # Warning/Skip logic if data missing? Spec says "Mandatory".
-    # For now, pass if data missing but log warning, or fail strict.
-    
+    # 3. Trajectory Analysis: Improvement (1st Derivative)
+    # Loss must be shrinking: q0 > q1 (e.g., -5 > -10)
+    improvement = q0 > q1
+    if not improvement:
+        return StrategyResult("LossToEarn", False, f"Widening Loss ({q0} <= {q1})", {})
+
     # 4. Earnings Acceleration (2nd Derivative)
-    # d2E/dt2 > 0
-    # Acceleration = (E_t - E_t-1) - (E_t-1 - E_t-2)
-    #              = E_t - 2*E_t-1 + E_t-2
-    # E_t = current_ni
+    # (q0 - q1) - (q1 - q2) > 0
+    # q0 - 2*q1 + q2 > 0
     
-    q1 = net_income_data[last_3[0]] # t-2
-    q2 = net_income_data[last_3[1]] # t-1
-    q3 = net_income_data[last_3[2]] # t (current)
-    
-    acceleration = q3 - (2 * q2) + q1
+    acceleration = q0 - (2 * q1) + q2
     accelerating = acceleration > 0
     
     if not accelerating:
-         return StrategyResult("LossToEarn", False, f"Decelerating Earnings ({acceleration} <= 0)", {})
+         return StrategyResult("LossToEarn", False, f"Decelerating Recovery ({acceleration} <= 0)", {})
          
-    return StrategyResult("LossToEarn", True, "Trough-and-Pivot Verified", {
+    return StrategyResult("LossToEarn", True, "Narrowing Losses with Acceleration", {
         "distressed_quarters": negative_count,
-        "current_ni": current_ni,
+        "q0_ni": q0,
+        "q1_ni": q1,
+        "q2_ni": q2,
         "acceleration": acceleration
     })

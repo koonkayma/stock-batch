@@ -76,29 +76,50 @@ class SecClient:
             
             units = us_gaap[tag].get("units", {})
             if "USD" not in units and "shares" not in units: 
-                 # Some Might be pure numbers, handle if needed
                  pass 
             
-            # Usually USD for financials
             data_points = units.get("USD", [])
             
             annual_map = {}
             for dp in data_points:
                 # Filter for 10-K only as per spec
                 if dp.get("form") and str(dp.get("form")).upper().startswith("10-K"):
-                    # Check if it covers a full year (approx 360-370 days) is ideal,
-                    # but Frame check is safer if available (e.g. CY2023)
-                    # For simplicity, we use the `fy` and take the latest filed frame for that year
-                    # or just overwrite duplicates. 
                     year = dp.get("fy")
                     val = dp.get("val")
                     if year and val is not None:
                         annual_map[year] = val
             return annual_map
 
+        # Helper to extract quarterly values
+        # Returns dict: {"YYYY-Qn": value}
+        def get_quarterly_values(tag: str) -> Dict[str, float]:
+            if tag not in us_gaap:
+                return {}
+            
+            units = us_gaap[tag].get("units", {})
+            data_points = units.get("USD", [])
+            
+            quarterly_map = {}
+            for dp in data_points:
+                form = str(dp.get("form", "")).upper()
+                if form.startswith("10-Q"):
+                    fy = dp.get("fy")
+                    fp = dp.get("fp") # e.g. Q1, Q2, Q3
+                    val = dp.get("val")
+                    
+                    if fy and fp and val is not None:
+                        key = f"{fy}-{fp}"
+                        # Check frame to ensure it's a 3-month period if possible?
+                        # For now, trust fp.
+                        quarterly_map[key] = val
+            return quarterly_map
+
         # Extract core metrics
         net_income = get_annual_values("NetIncomeLoss")
         ocf = get_annual_values("NetCashProvidedByUsedInOperatingActivities")
+        
+        # Quarterly Data Extraction (New)
+        q_net_income = get_quarterly_values("NetIncomeLoss")
         
         # CapEx: Merge tags
         capex_1 = get_annual_values("PaymentsToAcquirePropertyPlantAndEquipment")
@@ -140,7 +161,7 @@ class SecClient:
             )
             financials.append(fin)
             
-        return financials
+        return financials, q_net_income
 
 
 # --- Finnhub Client ---
