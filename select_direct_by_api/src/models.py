@@ -18,7 +18,9 @@ class AnnualFinancials:
     total_equity: Optional[float] = None
     total_debt: Optional[float] = None
     ebit: Optional[float] = None
+    ebit: Optional[float] = None
     interest_expense: Optional[float] = None
+    revenue: Optional[float] = None
     
     @property
     def fcf(self) -> Optional[float]:

@@ -140,7 +140,14 @@ def run():
             status = "PASS" if res.passed else "FAIL"
             print(f"{name:<12} [{status}] {res.signal}")
             if res.details:
-                 if "per_year" in res.details:
+                 if name == "Growth":
+                      d = res.details
+                      cagr = d.get('cagr') or 0
+                      rule40 = d.get('rule40_score') or 0
+                      margin = d.get('fcf_margin') or 0
+                      print(f"  Years: {d.get('years_analysed')} | Pos: {d.get('positive_years')}")
+                      print(f"  CAGR: {cagr:.2%} | Rule40: {rule40:.2f} | Margin: {margin:.2%}")
+                 elif "per_year" in res.details:
                       print(f"  Years: {res.details['years_analysed']}")
                  else:
                       print(f"  {res.details}")
@@ -198,6 +205,7 @@ def run():
                 writer = csv.writer(f)
                 writer.writerow([
                     "Ticker", "Growth_Pass", "Growth_Signal", 
+                    "Growth_CAGR", "Growth_Rule40",
                     "Dividend_Pass", "Turnaround_Pass", "LossToEarn_Pass"
                 ])
 
@@ -233,14 +241,12 @@ def run():
                 f.write("| " + " | ".join(clean_row) + " |\n")
 
         # Init Headers
-        ensure_md_header(md_growth_path, ["Ticker", "Signal", "Years Analyzed", "Positive Years", "Skipped FCF Check?"])
+        ensure_md_header(md_growth_path, ["Ticker", "Signal", "Years Analyzed", "Positive Years", "Skipped FCF Check?", "5-Yr CAGR", "Rule of 40", "FCF Margin"])
         ensure_md_header(md_dividend_path, ["Ticker", "Signal", "Yield", "Payout Ratio", "Solvency Passed?", "FCF Coverage"])
         ensure_md_header(md_turnaround_path, ["Ticker", "Signal", "Margin Improving?", "Interest Coverage"])
         ensure_md_header(md_loss2earn_path, ["Ticker", "Signal", "Distressed Qtrs", "Current NI", "Acceleration"])
 
         # 3. Processing Loop
-        # Append mode 'a' for resume, but we open/close per batch logic or keep open?
-        # To be safe and simple: open in append mode for the whole loop
         with open(csv_path, 'a', newline='') as f:
             writer = csv.writer(f)
             
@@ -252,25 +258,49 @@ def run():
                     logger.info(f"Processing {ticker}...")
                     report = process_ticker(ticker, cik, clients)
                     
+                    # Growth Details
+                    g_cagr = "N/A"
+                    g_rule40 = "N/A"
+                    if report.growth_result:
+                         d = report.growth_result.details
+                         if d.get("cagr") is not None: g_cagr = f"{d.get('cagr'):.2%}"
+                         if d.get("rule40_score") is not None: g_rule40 = f"{d.get('rule40_score'):.2f}"
+
                     writer.writerow([
                         ticker,
-                        report.growth_result.passed, report.growth_result.signal,
-                        report.dividend_result.passed,
-                        report.turnaround_result.passed,
-                        report.loss_to_earn_result.passed
+                        report.growth_result.passed if report.growth_result else False, 
+                        report.growth_result.signal if report.growth_result else "N/A",
+                        g_cagr, g_rule40,
+                        report.dividend_result.passed if report.dividend_result else False,
+                        report.turnaround_result.passed if report.turnaround_result else False,
+                        report.loss_to_earn_result.passed if report.loss_to_earn_result else False
                     ])
                     f.flush() # Ensure data is written immediately
                     
                     # --- MD Writing Logic ---
                     # Growth
+                    # Note: We now output to MD even if failed, or just passed? 
+                    # Prompt says "list out the ticker of picked stock". 
+                    # So only Passed? 
+                    # But now we have complex fail reasons. 
+                    # Previous logic was `if report.growth_result and report.growth_result.passed:`
+                    # I'll stick to that, but user asked for "relevant fields for pick up conditions".
                     if report.growth_result and report.growth_result.passed:
                         d = report.growth_result.details
+                        
+                        cagr_str = f"{d.get('cagr', 0):.2%}" if d.get('cagr') is not None else "N/A"
+                        rule40_str = f"{d.get('rule40_score', 0):.2f}" if d.get('rule40_score') is not None else "N/A"
+                        margin_str = f"{d.get('fcf_margin', 0):.2%}" if d.get('fcf_margin') is not None else "N/A"
+                        
                         row = [
                             ticker, 
                             report.growth_result.signal,
                             d.get("years_analysed", 0),
                             d.get("positive_years", 0),
-                            d.get("is_skipped", False)
+                            d.get("is_fcf_skipped", False),
+                            cagr_str,
+                            rule40_str,
+                            margin_str
                         ]
                         append_md_row(md_growth_path, row)
 

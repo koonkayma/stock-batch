@@ -85,7 +85,7 @@ class SecClient:
             annual_map = {}
             for dp in data_points:
                 # Filter for 10-K only as per spec
-                if dp.get("form") == "10-K":
+                if dp.get("form") and str(dp.get("form")).upper().startswith("10-K"):
                     # Check if it covers a full year (approx 360-370 days) is ideal,
                     # but Frame check is safer if available (e.g. CY2023)
                     # For simplicity, we use the `fy` and take the latest filed frame for that year
@@ -99,15 +99,27 @@ class SecClient:
         # Extract core metrics
         net_income = get_annual_values("NetIncomeLoss")
         ocf = get_annual_values("NetCashProvidedByUsedInOperatingActivities")
-        capex = get_annual_values("PaymentsToAcquirePropertyPlantAndEquipment")
+        
+        # CapEx: Merge tags
+        capex_1 = get_annual_values("PaymentsToAcquirePropertyPlantAndEquipment")
+        capex_2 = get_annual_values("PaymentsToAcquireProductiveAssets")
+        capex = {**capex_1, **capex_2} # capex_2 overwrites capex_1 if conflict (usually safe)
+        
         assets = get_annual_values("Assets")
         equity = get_annual_values("StockholdersEquity")
         debt_current = get_annual_values("LongTermDebtCurrent")
         debt_noncurrent = get_annual_values("LongTermDebtNoncurrent")
         
+        # Revenue: Merge tags (prioritize implementation tags over generic)
+        rev_1 = get_annual_values("SalesRevenueNet")
+        rev_2 = get_annual_values("Revenues")
+        rev_3 = get_annual_values("RevenueFromContractWithCustomerExcludingAssessedTax")
+        # Merge order: rev3 > rev2 > rev1
+        revenue = {**rev_1, **rev_2, **rev_3}
+        
         # Merge debt
         total_debt = {}
-        all_years = set(net_income.keys()) | set(ocf.keys()) | set(assets.keys())
+        all_years = set(net_income.keys()) | set(ocf.keys()) | set(assets.keys()) | set(revenue.keys())
         for y in all_years:
             d_c = debt_current.get(y, 0)
             d_nc = debt_noncurrent.get(y, 0)
@@ -118,6 +130,7 @@ class SecClient:
         for y in sorted(all_years):
             fin = AnnualFinancials(
                 fiscal_year=y,
+                revenue=revenue.get(y),
                 net_income=net_income.get(y),
                 operating_cash_flow=ocf.get(y),
                 capex=capex.get(y),
