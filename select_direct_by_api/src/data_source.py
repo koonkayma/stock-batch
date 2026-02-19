@@ -64,7 +64,7 @@ class SecClient:
         Real-world XBRL parsing is complex; this is a heuristic approach.
         """
         if not facts or "facts" not in facts or "us-gaap" not in facts["facts"]:
-            return []
+            return [], {}
             
         us_gaap = facts["facts"]["us-gaap"]
         
