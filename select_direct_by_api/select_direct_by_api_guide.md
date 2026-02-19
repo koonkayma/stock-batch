@@ -10,7 +10,7 @@ This guide provides instructions for setting up, running, and understanding the 
 
 ### Environment Configuration
 The program requires its configuration to be in a JSON file or set as environment variables.
-1. Create or ensure the existence of `/home/kay/workspace/stock-batch/select_direct_by_api/stock_selection_config.json`.
+1. Create or ensure the existence of `stock_selection_config.json` in the project root.
 2. Ensure it contains your **Finnhub API Key**:
    ```json
    {
@@ -19,13 +19,18 @@ The program requires its configuration to be in a JSON file or set as environmen
    ```
 3. (Optional) Set up your **SEC User-Agent** (e.g., `Sample Company AdminContact@example.com`) if needed by changing `config.py`.
 
-### Installation
-Navigate to the project directory and install the necessary Python libraries:
+Navigate to the project directory, create a virtual environment, and install the necessary Python libraries:
 ```bash
-cd /home/kay/workspace/stock-batch/select_direct_by_api
+# 1. Create a virtual environment
+python3 -m venv .venv
+
+# 2. Activate the virtual environment
+source .venv/bin/activate
+
+# 3. Install requirements
 pip install -r requirements.txt
 ```
-This will install `requests`, `pandas`, `yfinance`, and `numpy`.
+This will install `requests`, `pandas`, `yfinance`, and `numpy` inside the `.venv` directory, keeping your system Python environment clean.
 
 ---
 
@@ -45,8 +50,7 @@ This will install `requests`, `pandas`, `yfinance`, and `numpy`.
 
 ## 3. How to Run the Program
 
-### Single Ticker Mode (Diagnostics)
-Use this to analyze a specific stock instantly.
+Ensure your virtual environment is activated (`source .venv/bin/activate`), then run:
 ```bash
 python3 -m src.main --ticker AAPL
 ```
@@ -221,9 +225,11 @@ If you want to clear all progress and start a completely fresh batch scan:
    rm logs/*.log
    ```
 4. **Re-run the Program**:
-   ```bash
-   python3 -m src.main --batch
-   ```
+```bash
+# Ensure venv is active
+source .venv/bin/activate
+python3 -m src.main --batch
+```
 
 > [!TIP]
 > **Keep Your Data Archive**: You do **not** need to delete `data/archive/` to start a fresh run. Keeping these `.gz` files allows the program to reuse previously fetched SEC data, making the new run significantly faster.
