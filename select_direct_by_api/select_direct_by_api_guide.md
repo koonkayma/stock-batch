@@ -65,9 +65,23 @@ python3 -m src.main --batch
 ## 4. Understanding Outputs and Logs
 
 ### Output Files (Batch Mode)
-Results are saved to a CSV file in the root directory: `output_YYYYMMDD_HHMMSS.csv`.
-- **Growth_Pass**: Boolean (True/False) indicating if the company passed the Growth strategy.
-- **Growth_Signal**: Description of why it passed/failed (e.g., "Positive Signal", "Insufficient FCF Persistence").
+Results are saved to a CSV file (`output_YYYYMMDD_HHMMSS.csv`) and specific Markdown reports (e.g., `output_YYYYMMDD_HHMMSS_growth.md`) in the root directory.
+
+#### CSV Columns:
+- **Growth_Pass**: True if company passes FCF, CAGR, and Rule of 40.
+- **Growth_Signal**: High-level status (e.g., "Strong Growth").
+- **Growth_CAGR**: The calculated 5-Year Revenue CAGR.
+- **Growth_Rule40**: The Rule of 40 score (CAGR % + FCF Margin %).
+
+#### Markdown Report Columns (Growth):
+- **Ticker**
+- **Signal**
+- **Years Analyzed**
+- **Positive Years**
+- **Skipped FCF Check?**
+- **5-Yr CAGR**
+- **Rule of 40**
+- **FCF Margin**
 
 ### Log Files
 Logs are located in the `logs/` directory with timestamped names: `execution-YYYY-MM-DD_HH-MM-SS.log`.
@@ -80,10 +94,12 @@ Logs are located in the `logs/` directory with timestamped names: `execution-YYY
 ## 5. Stock Selection Logic
 
 ### Growth Strategy
-- **Core Metric**: Free Cash Flow (FCF) = Operating Cash Flow - CapEx.
-- **Logic**: Analyzes the last 5 fiscal years.
-- **Threshold**: Requires at least **3 out of 5 years** to be positive.
-- **Skip Logic**: If the system finds fewer than 5 years of FCF data (e.g., for recent IPOs), the check is **skipped**, and the stock passes by default to ensure no disqualification due to lack of history.
+- **Free Cash Flow (FCF) Persistence**: 
+  - Analyzes the last 5 fiscal years.
+  - Requires at least **3 out of 5 years** to be positive.
+  - **Skip Logic**: If fewer than 5 years of FCF data exist, the check is skipped (passes component).
+- **Revenue CAGR**: Requires a 5-Year Revenue Compound Annual Growth Rate strictly greater than **10%**.
+- **Rule of 40**: The sum of **Revenue CAGR (%)** and **FCF Margin (%)** must be at least **40**.
 
 ### Dividend Strategy
 - **Solvency**: Checks the Debt-to-Equity (D/E) Ratio.

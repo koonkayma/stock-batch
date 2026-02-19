@@ -31,18 +31,25 @@ The successful implementation of this dual-mode architecture requires fastidious
 
 The analytical core of the Antigravity Financial Intelligence System is built upon four distinct, mathematically rigorous financial strategies. The system relies entirely on the ingestion of raw XBRL data directly from the SEC EDGAR repository.16 This primary, audited data is strictly prioritized over third-party aggregated data to systematically eliminate the risk of normalization errors, data smoothing, or retroactive adjustments commonly found in retail financial APIs. The Antigravity agent must codify these fundamental rules with absolute, unyielding precision, ensuring that the complex hierarchy of XBRL tags is respected to account for the vast variations in corporate accounting terminology.16
 
-### **The Growth Strategy: Cash Flow Persistence**
+### **The Growth Strategy: Cash Flow Persistence and Revenue Expansion**
 
-The Growth Strategy is predicated on the foundational financial axiom that long-term enterprise value is intrinsically derived from consistent cash flow generation, which serves as a far more reliable indicator of corporate health than highly manipulable accounting profits based on Generally Accepted Accounting Principles (GAAP).16 The algorithm mandates a longitudinal analysis focused entirely on Free Cash Flow (FCF) persistence.
+The Growth Strategy is predicated on the foundational financial axiom that long-term enterprise value is intrinsically derived from consistent cash flow generation and sustained top-line expansion.16 The algorithm mandates a multi-dimensional analysis focused on Free Cash Flow (FCF) persistence, Revenue CAGR, and the "Rule of 40" efficiency metric.
 
-To determine the true Free Cash Flow of a target entity, the system must extract the primary operating cash flow tag, NetCashProvidedByUsedInOperatingActivities, and subtract the capital expenditure tag, PaymentsToAcquirePropertyPlantAndEquipment.16 The theoretical justification for this specific calculation is rooted in the reality that Capital Expenditures represent mandatory cash outflows required to maintain the physical and operational integrity of the business; therefore, only the residual cash remaining after these expenditures can be considered truly "free" for shareholder distribution, aggressive debt reduction, or strategic acquisitions.
+#### **1. Free Cash Flow Persistence**
+To determine the true Free Cash Flow of a target entity, the system must extract the primary operating cash flow tag, `NetCashProvidedByUsedInOperatingActivities`, and subtract the capital expenditure tag, `PaymentsToAcquirePropertyPlantAndEquipment` (or `PaymentsToAcquireProductiveAssets`).16
 
-The resilience threshold for this specific strategy is clearly defined with a data-availability safety valve. The target company is primarily evaluated over the most recent five fiscal years. A "Positive Signal" is strictly defined as possessing a minimum of three out of the most recent five fiscal years with a mathematically positive Free Cash Flow (![][image1]).16 
+The resilience threshold for this specific strategy is clearly defined with a data-availability safety valve. The target company is primarily evaluated over the most recent five fiscal years. A "Positive Signal" is strictly defined as possessing a minimum of three out of the most recent five fiscal years with a mathematically positive Free Cash Flow.16
 
 > [!IMPORTANT]
-> **Data Persistence Relaxed**: If the system detects that the SEC EDGAR repository contains fewer than five years of valid FCF data for a target entity, the quantitative persistence check is programmatically skipped. The ticker is NOT disqualified for lack of data; instead, it is marked as "Skipped (Insufficient Data)" and allowed to pass to subsequent strategies to prevent penalizing recent IPOs or companies with anomalous XBRL filing histories.
+> **Data Persistence Relaxed**: If the system detects that the SEC EDGAR repository contains fewer than five years of valid FCF data for a target entity, the quantitative persistence check is programmatically skipped. The ticker is NOT disqualified for lack of data; instead, it is marked as "Skipped (Insufficient Data)" and allowed to pass the FCF component of the strategy.
 
-Furthermore, the analysis must strictly utilize audited Form 10-K annual filings, explicitly ignoring Form 10-Q quarterly reports.16 This ensures that the long-term trend accuracy is not skewed by seasonal working capital variations or unaudited quarterly adjustments that are frequently reversed at year-end. 
+#### **2. Revenue CAGR Check**
+The system must calculate the **5-Year Revenue Compound Annual Growth Rate (CAGR)**. For a ticker to pass this check, the CAGR must be strictly greater than **10%**. This ensures the company is in a genuine expansion phase rather than simply optimizing costs in a stagnant market.
+
+#### **3. The Rule of 40**
+The "Rule of 40" is a sophisticated efficiency metric calculated as the sum of the **Revenue CAGR (%)** and the **FCF Margin (%)**. For the condition to be successfully met, the score must be at least **40**. This identifies companies that balance aggressive growth with operational cash generation efficiency.
+
+Furthermore, the growth analysis must strictly utilize audited Form 10-K (or 10-K/A) annual filings, explicitly ignoring Form 10-Q quarterly reports.16 This ensures that the long-term trend accuracy is not skewed by seasonal variations.
 
 ### **The Dividend Strategy: Solvency and Yield Sustainability**
 
