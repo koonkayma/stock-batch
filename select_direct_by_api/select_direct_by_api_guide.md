@@ -254,9 +254,10 @@ python3 -m src.main --batch
 If you need to share or archive the codebase while excluding large data and log files (but keeping the directory structure), use the following `tar` command from the parent directory:
 
 ```bash
-tar -cvzf select_direct_by_api.tar.gz select_direct_by_api \
+tar -cvzf select_direct_by_api.tar.gz \
   --exclude='select_direct_by_api/data/*/*' \
-  --exclude='select_direct_by_api/logs/*'
+  --exclude='select_direct_by_api/logs/*' \
+  select_direct_by_api
 ```
 
 ### What this does:
