@@ -41,6 +41,15 @@ This will install `requests`, `pandas`, `yfinance`, and `numpy` inside the `.ven
 - **Finnhub**: Fetches real-time quotes, company profiles, and market cap.
 - **yFinance**: Used as a secondary fallback for historical price data.
 
+### Monitoring API Quota (Finnhub)
+While Finnhub does not have a dedicated endpoint for checking quotas, it includes standard rate limit headers in every API response. You can monitor your usage programmatically by inspecting these headers:
+
+- **`X-Ratelimit-Limit`**: Your total allowed requests in the current window (e.g., 60).
+- **`X-Ratelimit-Remaining`**: How many requests you have left (e.g., 59).
+- **`X-Ratelimit-Reset`**: A Unix timestamp indicating when the limit will reset.
+
+For the free tier, the limit is typically **60 requests per minute**. You don't need a separate "check" endpoint; you can simply capture these headers during your regular API requests to monitor your remaining quota in real-time.
+
 ### Local Data Management
 - **Ticker Universe**: Fetches the universe directly from the SEC's public `company-tickers.json` endpoint.
 - **Data Compression**: Raw SEC data is stored temporarily in `data/raw/`, then compressed to `.gz` in `data/archive/`.
